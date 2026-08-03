@@ -1,18 +1,24 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "tasknotes-views",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Project progress views for TaskNotes in Obsidian",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"build:test": "npm run build && node copy-files.mjs",
+		"copy-files": "node copy-files.mjs",
+		"typecheck": "tsc -noEmit -skipLibCheck",
+		"test": "vitest run",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint ."
 	},
 	"keywords": [],
 	"license": "0-BSD",
 	"devDependencies": {
+		"@codemirror/state": "^6.7.1",
+		"@codemirror/view": "^6.38.6",
 		"@eslint/js": "^9.39.4",
 		"@types/node": "^22.15.17",
 		"esbuild": "0.25.5",
@@ -20,8 +26,12 @@
 		"eslint-plugin-obsidianmd": "^0.4.0",
 		"globals": "^17.6.0",
 		"jiti": "^2.6.1",
-		"obsidian": "latest",
+		"obsidian": "^1.13.1",
 		"typescript": "^5.8.3",
-		"typescript-eslint": "^8.59.1"
+		"typescript-eslint": "^8.59.1",
+		"vitest": "^3.2.4"
+	},
+	"dependencies": {
+		"echarts": "^6.0.0"
 	}
 }
