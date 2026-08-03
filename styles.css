@@ -24,6 +24,54 @@
 	font-size: var(--font-ui-smaller);
 }
 
+.tasknotes-views-cycle-progress__metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.tasknotes-views-cycle-progress__metric {
+	position: relative;
+	padding-left: 0.85rem;
+}
+
+.tasknotes-views-cycle-progress__metric::before {
+	position: absolute;
+	top: 0.4em;
+	left: 0;
+	width: 0.45rem;
+	height: 0.45rem;
+	border-radius: 1px;
+	background: #737373;
+	content: '';
+}
+
+.tasknotes-views-cycle-progress__metric.is-started::before {
+	background: #f2c200;
+}
+
+.tasknotes-views-cycle-progress__metric.is-completed::before {
+	background: #6c6cff;
+}
+
+.tasknotes-views-cycle-progress__metric-label,
+.tasknotes-views-cycle-progress__percent,
+.tasknotes-views-cycle-progress__loading,
+.tasknotes-views-cycle-progress__empty {
+	color: var(--text-muted);
+}
+
+.tasknotes-views-cycle-progress__metric-value {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+}
+
+.tasknotes-views-cycle-progress__percent {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-normal);
+}
+
 .tasknotes-views-cycle-progress__chart {
 	width: 100%;
 	height: 320px;
@@ -39,5 +87,9 @@
 
 	.tasknotes-views-cycle-progress__chart {
 		height: 260px;
+	}
+
+	.tasknotes-views-cycle-progress__metrics {
+		gap: 0.5rem;
 	}
 }

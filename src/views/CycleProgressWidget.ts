@@ -1,18 +1,95 @@
+import { App, TFile } from 'obsidian';
+import { loadProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
+import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { CycleProgressChart } from './CycleProgressChart';
 
 export const CYCLE_PROGRESS_CLASS = 'tasknotes-views-cycle-progress';
 
-/** Creates the project progress widget and returns an explicit cleanup callback. */
-export function createCycleProgressWidget(document: Document): { element: HTMLElement; dispose(): void } {
+/** Formats estimated minutes compactly for the progress summary. */
+function formatMinutes(minutes: number): string {
+	if (minutes < 60) return `${minutes}m`;
+	const hours = minutes / 60;
+	return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
+/** Adds one Linear-style metric to the chart summary. */
+function renderMetric(container: HTMLElement, label: string, value: number, total: number, modifier: string): void {
+	const metric = container.createDiv({ cls: `tasknotes-views-cycle-progress__metric is-${modifier}` });
+	metric.createDiv({ cls: 'tasknotes-views-cycle-progress__metric-label', text: label });
+	const valueElement = metric.createDiv({ cls: 'tasknotes-views-cycle-progress__metric-value' });
+	valueElement.createSpan({ text: formatMinutes(value) });
+	if (label !== 'Scope') valueElement.createSpan({ cls: 'tasknotes-views-cycle-progress__percent', text: ` · ${total > 0 ? Math.round(value / total * 100) : 0}%` });
+}
+
+/** Renders loaded project progress into an existing widget shell. */
+function renderProgress(element: HTMLElement, progress: ProjectProgress): CycleProgressChart {
+	element.empty();
+	const heading = element.createDiv({ cls: 'tasknotes-views-cycle-progress__heading' });
+	heading.createEl('h3', { text: `${progress.projectName} Progress` });
+	heading.createSpan({ text: `${progress.startDate} – ${progress.endDate}` });
+	const metrics = element.createDiv({ cls: 'tasknotes-views-cycle-progress__metrics' });
+	renderMetric(metrics, 'Scope', progress.scope, progress.scope, 'scope');
+	renderMetric(metrics, 'Started', progress.started, progress.scope, 'started');
+	renderMetric(metrics, 'Completed', progress.completed, progress.scope, 'completed');
+	const chartElement = element.createDiv({ cls: 'tasknotes-views-cycle-progress__chart' });
+	return new CycleProgressChart(chartElement, progress);
+}
+
+/** Creates an asynchronously populated project progress widget with explicit cleanup. */
+export function createCycleProgressWidget(app: App, file: TFile, document: Document): { element: HTMLElement; dispose(): void } {
 	const element = document.createElement('section');
 	element.className = CYCLE_PROGRESS_CLASS;
 	element.setAttribute('contenteditable', 'false');
-	const heading = element.createDiv({ cls: 'tasknotes-views-cycle-progress__heading' });
-	heading.createEl('h3', { text: 'Moon cheese launch' });
-	heading.createSpan({ text: 'Cycle progress · definitely real data' });
-	const chartElement = element.createDiv({ cls: 'tasknotes-views-cycle-progress__chart' });
+	element.createDiv({ cls: 'tasknotes-views-cycle-progress__loading', text: 'Loading project progress…' });
+	let chart: CycleProgressChart | null = null;
+	let disposed = false;
+	let refreshTimer: number | null = null;
+	const api = getTaskNotesApi(app);
 
-	// ECharts needs a mounted, explicitly sized host; the widget stylesheet supplies its stable height.
-	const chart = new CycleProgressChart(chartElement);
-	return { element, dispose: () => chart.dispose() };
+	/** Reloads indexed project tasks and replaces the rendered chart atomically. */
+	const refresh = async (): Promise<void> => {
+		try {
+			const progress = await loadProjectProgress(app, file);
+			if (disposed) return;
+			chart?.dispose();
+			chart = null;
+			if (!progress) {
+				element.empty();
+				element.createDiv({ cls: 'tasknotes-views-cycle-progress__empty', text: 'Add valid scheduled and due dates to show project progress.' });
+				return;
+			}
+			chart = renderProgress(element, progress);
+		} catch (error) {
+			console.error('[TaskNotes Views] Could not load project progress', {
+				projectPath: file.path,
+				error,
+			});
+			if (!disposed) element.setText('Could not load project progress.');
+		}
+	};
+	/** Coalesces bursts of TaskNotes events into one indexed reload. */
+	const scheduleRefresh = (): void => {
+		if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+		refreshTimer = window.setTimeout(() => {
+			refreshTimer = null;
+			void refresh();
+		}, 100);
+	};
+
+	// TaskNotes owns project query semantics; event-driven reloads keep the chart current without vault scans.
+	const eventRefs = api?.events ? [
+		api.events.on('task.updated', scheduleRefresh),
+		api.events.on('settings.changed', scheduleRefresh),
+	] : [];
+	void refresh();
+
+	return {
+		element,
+		dispose: () => {
+			disposed = true;
+			if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+			for (const ref of eventRefs) api?.events?.off(ref);
+			chart?.dispose();
+		},
+	};
 }

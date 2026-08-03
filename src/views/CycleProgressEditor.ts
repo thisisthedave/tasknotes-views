@@ -38,7 +38,7 @@ class CycleProgressEditorPlugin implements PluginValue {
 		if (!this.file || !isTaskNotesProject(this.plugin.app, this.file)) return;
 		const sizer = this.view.dom.closest('.markdown-source-view')?.querySelector<HTMLElement>('.cm-sizer');
 		if (!sizer || sizer.querySelector(`.${CYCLE_PROGRESS_CLASS}`)) return;
-		this.widget = createCycleProgressWidget(sizer.ownerDocument);
+		this.widget = createCycleProgressWidget(this.plugin.app, this.file, sizer.ownerDocument);
 		const metadata = sizer.querySelector('.metadata-container');
 		if (metadata) metadata.after(this.widget.element);
 		else sizer.prepend(this.widget.element);

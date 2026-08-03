@@ -1,18 +1,19 @@
 import { LineChart } from 'echarts/charts';
-import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import { GridComponent, TooltipComponent } from 'echarts/components';
 import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { ProjectProgress } from '../progress/ProjectProgress';
 
-use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
+use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
-/** Owns an ECharts cycle-progress demo and releases canvas/window resources on disposal. */
+/** Owns an ECharts project-progress graph and releases canvas resources on disposal. */
 export class CycleProgressChart {
 	private readonly chart: ECharts;
 	private readonly resizeObserver: ResizeObserver;
 
-	constructor(container: HTMLElement) {
+	constructor(container: HTMLElement, progress: ProjectProgress) {
 		this.chart = init(container);
-		this.chart.setOption(createSillyCycleOption());
+		this.chart.setOption(createCycleProgressOption(progress));
 		this.resizeObserver = new ResizeObserver(() => this.chart.resize());
 		this.resizeObserver.observe(container);
 	}
@@ -24,20 +25,24 @@ export class CycleProgressChart {
 	}
 }
 
-/** Builds dummy burndown-like data for the fictional Moon Cheese Launch cycle. */
-export function createSillyCycleOption(): EChartsCoreOption {
+/** Builds the Linear-inspired scope, started, completed, and ideal series. */
+export function createCycleProgressOption(progress: ProjectProgress): EChartsCoreOption {
 	return {
 		animationDuration: 450,
-		color: ['#8b5cf6', '#22c55e', '#94a3b8'],
-		legend: { top: 0, textStyle: { color: '#888' } },
-		tooltip: { trigger: 'axis' },
-		grid: { left: 42, right: 18, top: 44, bottom: 30 },
-		xAxis: { type: 'category', boundaryGap: false, data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
-		yAxis: { type: 'value', name: 'Cheese points', min: 0, max: 42 },
+		tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => `${Math.round(Number(value))} min` },
+		grid: { left: 48, right: 16, top: 18, bottom: 36 },
+		xAxis: {
+			type: 'category',
+			boundaryGap: false,
+			data: progress.points.map((point) => point.date),
+			axisLabel: { formatter: (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }) },
+		},
+		yAxis: { type: 'value', min: 0, name: 'Minutes' },
 		series: [
-			{ name: 'Ideal rind-down', type: 'line', symbol: 'none', lineStyle: { type: 'dashed' }, data: [42, 35, 28, 21, 14, 7, 0] },
-			{ name: 'Cheese remaining', type: 'line', smooth: 0.25, data: [42, 39, 33, 34, 22, 13, 5] },
-			{ name: 'Moon mice discovered', type: 'line', smooth: 0.25, data: [2, 4, 9, 12, 18, 27, 38] },
+			{ name: 'Scope', type: 'line', symbol: 'none', lineStyle: { color: '#737373', width: 2 }, data: progress.points.map((point) => point.scope) },
+			{ name: 'Ideal burndown', type: 'line', symbol: 'none', lineStyle: { color: '#8b8bff', type: 'dotted', width: 2 }, data: progress.points.map((point) => point.ideal) },
+			{ name: 'Started', type: 'line', symbol: 'none', lineStyle: { color: '#f2c200', width: 2 }, areaStyle: { color: 'rgba(242, 194, 0, 0.12)' }, data: progress.points.map((point) => point.started) },
+			{ name: 'Completed', type: 'line', symbol: 'none', lineStyle: { color: '#6c6cff', width: 2 }, data: progress.points.map((point) => point.completed) },
 		],
 	};
 }

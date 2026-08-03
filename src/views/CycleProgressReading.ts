@@ -28,7 +28,7 @@ export function registerCycleProgressReadingView(plugin: Plugin): void {
 		if (!sizer || sizer.querySelector(`.${CYCLE_PROGRESS_CLASS}`)) return;
 
 		// Reading mode can process many sections, so the class guard makes the note-level injection idempotent.
-		const widget = createCycleProgressWidget(sizer.ownerDocument);
+		const widget = createCycleProgressWidget(plugin.app, view.file, sizer.ownerDocument);
 		const metadata = sizer.querySelector('.metadata-container');
 		if (metadata) metadata.after(widget.element);
 		else sizer.prepend(widget.element);
