@@ -1,7 +1,7 @@
 import { App, TFile } from 'obsidian';
 import { TaskNotesViewsSettings } from '../settings';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
-import { buildProgressWorkItems } from './OccurrenceProjection';
+import { buildProgressWorkItems, ProgressWorkItem } from './OccurrenceProjection';
 import { calculateProjectCapacity, CapacityCalculation } from './Velocity';
 
 export interface ProjectProgressPoint {
@@ -33,6 +33,7 @@ export interface ProjectProgress {
 	scopeIsDuration: boolean;
 	estimatedCapacity?: number | null;
 	capacityCalculation?: CapacityCalculation | null;
+	workItems?: ProgressWorkItem[];
 	points: ProjectProgressPoint[];
 }
 
@@ -183,7 +184,7 @@ export function buildProjectProgress(
 		const completedTasks = workItems.filter((item) => item.completedDate && clampDate(item.completedDate, startDate, endDate) === current).map((item) => ({ name: item.name, scope: item.scope }));
 		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed, scheduledTasks, startedTasks, completedTasks };
 	});
-	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, today, scopeIsDuration: options.scopeIsDuration, points };
+	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, today, scopeIsDuration: options.scopeIsDuration, workItems, points };
 }
 
 /** Loads project dates and matching project tasks through Obsidian and TaskNotes' public query API. */

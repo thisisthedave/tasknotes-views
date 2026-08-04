@@ -18,6 +18,7 @@ The npm version lifecycle moves these entries into the versioned release page.
 - Added default-on cycle snapshots that freeze task membership, task properties, capacity inputs, and chart data before close-time rollover changes the live project assignments.
 - Added linked snapshot notes under each cycle folder's `Cycle snapshots` directory and close metadata on the cycle project note.
 - Added historical graph rendering from immutable snapshot data whenever a closed cycle links to a snapshot.
+- Added completed recurring-instance details to cycle snapshots so virtual and materialized completions shown in the graph remain visible even when the parent task itself is incomplete.
 - Added a hover and keyboard-focus summary on **Scope / Capacity** showing the historical completion window, completion count, weighted weekly velocity, project workdays, and resulting capacity.
 
 ## Fixed

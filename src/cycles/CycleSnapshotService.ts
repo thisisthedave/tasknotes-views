@@ -23,6 +23,27 @@ interface CycleSnapshotTask {
 	completedAtClose: unknown;
 }
 
+export interface CycleSnapshotRecurringCompletion {
+	task: string;
+	pathAtClose: string;
+	titleAtClose: string;
+	occurrenceDate: string;
+	completedDate: string;
+	scopeAtClose: number;
+}
+
+/** Extracts completed logical recurring occurrences represented by a frozen progress calculation. */
+export function getCompletedRecurringInstances(progress: ProjectProgress): CycleSnapshotRecurringCompletion[] {
+	return (progress.workItems ?? []).filter((item) => item.recurring && item.recurrenceDate && item.completedDate).map((item) => ({
+		task: `[[${(item.taskPath ?? item.name).replace(/\.md$/i, '')}]]`,
+		pathAtClose: item.taskPath ?? '',
+		titleAtClose: item.name,
+		occurrenceDate: item.recurrenceDate as string,
+		completedDate: item.completedDate as string,
+		scopeAtClose: item.scope,
+	}));
+}
+
 /** Captures immutable cycle membership and chart data before rollover mutates task projects. */
 export class CycleSnapshotService {
 	constructor(private readonly app: App, private readonly plugin: TaskNotesViewsPlugin) {}
@@ -49,9 +70,10 @@ export class CycleSnapshotService {
 		const progress = await loadLiveProjectProgress(this.app, cycle, this.plugin.settings);
 		if (!progress) throw new Error(`Could not calculate progress for ${cycle.path} before closing it.`);
 		const tasks = await this.loadProjectTasks(cycle);
+		const completedRecurringInstances = getCompletedRecurringInstances(progress);
 		const path = this.getAvailableSnapshotPath(cycle);
 		await this.ensureSnapshotFolder(path);
-		const body = this.buildSnapshotBody(cycle, capturedAt, tasks);
+		const body = this.buildSnapshotBody(cycle, capturedAt, tasks, completedRecurringInstances);
 		const cycleFrontmatter = getFrontmatter(this.app, cycle);
 		const properties: Record<string, unknown> = {
 			type: 'cycle-snapshot',
@@ -62,6 +84,7 @@ export class CycleSnapshotService {
 			capturedAt,
 			captureReason,
 			tasks: tasks.map((task) => this.snapshotTask(task)),
+			completedRecurringInstances,
 			progress,
 		};
 		// Frontmatter must be part of the initial write because Obsidian may not cache a newly created file immediately.
@@ -101,12 +124,19 @@ export class CycleSnapshotService {
 	}
 
 	/** Writes a readable linked membership list beneath the structured snapshot frontmatter. */
-	private buildSnapshotBody(cycle: TFile, capturedAt: string, tasks: TaskNotesTask[]): string {
+	private buildSnapshotBody(
+		cycle: TFile,
+		capturedAt: string,
+		tasks: TaskNotesTask[],
+		completedRecurringInstances: CycleSnapshotRecurringCompletion[],
+	): string {
 		const taskRows = tasks.map((task) => {
 			const title = task.title?.trim() || task.path.replace(/\.md$/i, '').split('/').at(-1) || task.path;
 			return `- [[${task.path.replace(/\.md$/i, '')}|${title}]] — ${task.status}`;
 		});
-		return `# ${cycle.basename} snapshot\n\nCaptured ${capturedAt}.\n\n## Tasks at close\n\n${taskRows.join('\n') || '_No tasks were assigned at close._'}\n`;
+		const recurringRows = completedRecurringInstances.map((instance) =>
+			`- [[${instance.pathAtClose.replace(/\.md$/i, '')}|${instance.titleAtClose}]] — occurrence ${instance.occurrenceDate}, completed ${instance.completedDate}, scope ${instance.scopeAtClose}`);
+		return `# ${cycle.basename} snapshot\n\nCaptured ${capturedAt}.\n\n## Tasks at close\n\n${taskRows.join('\n') || '_No tasks were assigned at close._'}\n\n## Completed recurring instances\n\n${recurringRows.join('\n') || '_No recurring instances were completed during this cycle._'}\n`;
 	}
 
 	/** Resolves the linked snapshot already recorded on the cycle, if any. */

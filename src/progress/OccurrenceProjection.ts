@@ -4,6 +4,9 @@ import { TaskNotesTask } from '../tasknotes/TaskNotesApi';
 export interface ProgressWorkItem {
 	name: string;
 	scope: number;
+	taskPath?: string;
+	recurring?: boolean;
+	recurrenceDate?: string;
 	scheduledDate?: string;
 	startedDate?: string;
 	completedDate?: string;
@@ -78,6 +81,8 @@ function createTaskWorkItem(task: TaskNotesTask, options: OccurrenceProjectionOp
 	return {
 		name: getTaskName(task),
 		scope,
+		taskPath: task.path,
+		recurring: false,
 		scheduledDate: getDate(task, options.taskScheduledProperty),
 		startedDate: started ? getDate(task, options.taskStartProperty) ?? completionDate : undefined,
 		completedDate: completionDate,
@@ -116,6 +121,9 @@ function projectRecurringParent(
 			items.push({
 				name: getTaskName(occurrence),
 				scope,
+				taskPath: occurrence.path,
+				recurring: true,
+				recurrenceDate: occurrenceDate,
 				scheduledDate: getDate(occurrence, options.taskScheduledProperty),
 				startedDate: started ? getDate(occurrence, options.taskStartProperty) ?? completionDate : undefined,
 				completedDate: completionDate,
@@ -128,6 +136,9 @@ function projectRecurringParent(
 		items.push({
 			name: getTaskName(parent),
 			scope: parentScope,
+			taskPath: parent.path,
+			recurring: true,
+			recurrenceDate: occurrenceDate,
 			scheduledDate: occurrenceDate,
 			startedDate: completed ? occurrenceDate : undefined,
 			completedDate: completed ? occurrenceDate : undefined,

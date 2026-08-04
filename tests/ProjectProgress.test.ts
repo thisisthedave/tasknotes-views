@@ -172,6 +172,12 @@ describe('buildProjectProgress', () => {
 		expect(progress?.scheduled).toBe(15);
 		expect(progress?.started).toBe(15);
 		expect(progress?.completed).toBe(15);
+		expect(progress?.workItems).toMatchObject([{
+			taskPath: 'Tasks/cauldron.md',
+			recurring: true,
+			recurrenceDate: '2026-08-02',
+			completedDate: '2026-08-02',
+		}]);
 	});
 
 	it('uses materialized estimates and suppresses projections moved to another project', () => {
@@ -218,6 +224,12 @@ describe('buildProjectProgress', () => {
 		expect(progress?.completed).toBe(20);
 		expect(progress?.points.find((point) => point.date === '2026-08-02')?.completed).toBe(0);
 		expect(progress?.points.find((point) => point.date === '2026-08-03')?.completed).toBe(20);
+		expect(progress?.workItems).toMatchObject([{
+			taskPath: 'Tasks/cauldron-2026-08-02.md',
+			recurring: true,
+			recurrenceDate: '2026-08-02',
+			completedDate: '2026-08-03',
+		}]);
 	});
 
 	it('excludes materialized occurrences whose status is configured as skipped', () => {
