@@ -117,6 +117,19 @@ npm run build:test
 
 `npm run copy-files` copies `main.js`, `manifest.json`, and `styles.css` to destinations listed in `.copy-files.local`, the `OBSIDIAN_PLUGIN_PATH` environment variable, or the default TaskNotes end-to-end test vault.
 
+### Releases
+
+Add user-facing changes to `docs/releases/unreleased.md`, then prepare a release with npm's version command:
+
+```bash
+npm version patch
+git push --follow-tags
+```
+
+Use `minor`, `major`, or an explicit semantic version instead of `patch` when appropriate. The version lifecycle synchronizes `manifest.json` and `versions.json`, promotes the unreleased notes to `docs/releases/<version>.md`, regenerates the release index, commits the changes, and creates the version tag. Pushing the tag triggers GitHub Actions, which builds the plugin and creates a draft GitHub release using that Markdown file. Review and publish the draft in GitHub.
+
+`npm run version` only invokes the lifecycle script directly and does not create npm's version commit or Git tag; use `npm version ...` for releases.
+
 ## License
 
 [MIT](LICENSE)
