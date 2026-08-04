@@ -1,4 +1,5 @@
-import { Events, EventRef, Plugin } from 'obsidian';
+import { Events, EventRef, getLanguage, Plugin } from 'obsidian';
+import { createI18nService } from './i18n';
 import { DEFAULT_SETTINGS, TaskNotesViewsSettings, TaskNotesViewsSettingTab } from './settings';
 import { createCycleProgressExtension } from './views/CycleProgressEditor';
 import { registerCycleProgressReadingView } from './views/CycleProgressReading';
@@ -6,6 +7,7 @@ import { registerCycleProgressReadingView } from './views/CycleProgressReading';
 /** Registers TaskNotes project progress views and owns settings and lifecycle events. */
 export default class TaskNotesViewsPlugin extends Plugin {
 	settings: TaskNotesViewsSettings = { ...DEFAULT_SETTINGS };
+	readonly i18n = createI18nService({ initialLocale: 'system', getSystemLocale: () => getLanguage() });
 	private readonly settingsEvents = new Events();
 
 	async onload(): Promise<void> {

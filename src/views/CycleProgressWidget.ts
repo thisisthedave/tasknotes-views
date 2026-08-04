@@ -7,26 +7,26 @@ import { CycleProgressChart, formatScopeValue } from './CycleProgressChart';
 export const CYCLE_PROGRESS_CLASS = 'tasknotes-views-cycle-progress';
 
 /** Adds one Linear-style metric to the chart summary. */
-function renderMetric(container: HTMLElement, label: string, value: number, total: number, modifier: string, isDuration: boolean): void {
+function renderMetric(container: HTMLElement, label: string, value: number, total: number, modifier: string, isDuration: boolean, showPercent: boolean, plugin: TaskNotesViewsPlugin): void {
 	const metric = container.createDiv({ cls: `tasknotes-views-cycle-progress__metric is-${modifier}` });
 	metric.createDiv({ cls: 'tasknotes-views-cycle-progress__metric-label', text: label });
 	const valueElement = metric.createDiv({ cls: 'tasknotes-views-cycle-progress__metric-value' });
-	valueElement.createSpan({ text: formatScopeValue(value, isDuration) });
-	if (label !== 'Scope') valueElement.createSpan({ cls: 'tasknotes-views-cycle-progress__percent', text: ` · ${total > 0 ? Math.round(value / total * 100) : 0}%` });
+	valueElement.createSpan({ text: formatScopeValue(value, isDuration, plugin.i18n) });
+	if (showPercent) valueElement.createSpan({ cls: 'tasknotes-views-cycle-progress__percent', text: ` · ${total > 0 ? Math.round(value / total * 100) : 0}%` });
 }
 
 /** Renders loaded project progress into an existing widget shell. */
-function renderProgress(element: HTMLElement, progress: ProjectProgress): CycleProgressChart {
+function renderProgress(element: HTMLElement, progress: ProjectProgress, plugin: TaskNotesViewsPlugin): CycleProgressChart {
 	element.empty();
 	const heading = element.createDiv({ cls: 'tasknotes-views-cycle-progress__heading' });
-	heading.createEl('h3', { text: `${progress.projectName} Progress` });
-	heading.createSpan({ text: `${progress.startDate} – ${progress.endDate}` });
+	heading.createEl('h3', { text: plugin.i18n.translate('progress.title', { projectName: progress.projectName }) });
+	heading.createSpan({ text: plugin.i18n.translate('progress.dateRange', { startDate: progress.startDate, endDate: progress.endDate }) });
 	const metrics = element.createDiv({ cls: 'tasknotes-views-cycle-progress__metrics' });
-	renderMetric(metrics, 'Scope', progress.scope, progress.scope, 'scope', progress.scopeIsDuration);
-	renderMetric(metrics, 'Started', progress.started, progress.scope, 'started', progress.scopeIsDuration);
-	renderMetric(metrics, 'Completed', progress.completed, progress.scope, 'completed', progress.scopeIsDuration);
+	renderMetric(metrics, plugin.i18n.translate('progress.metrics.scope'), progress.scope, progress.scope, 'scope', progress.scopeIsDuration, false, plugin);
+	renderMetric(metrics, plugin.i18n.translate('progress.metrics.started'), progress.started, progress.scope, 'started', progress.scopeIsDuration, true, plugin);
+	renderMetric(metrics, plugin.i18n.translate('progress.metrics.completed'), progress.completed, progress.scope, 'completed', progress.scopeIsDuration, true, plugin);
 	const chartElement = element.createDiv({ cls: 'tasknotes-views-cycle-progress__chart' });
-	return new CycleProgressChart(chartElement, progress);
+	return new CycleProgressChart(chartElement, progress, plugin.i18n);
 }
 
 /** Creates an asynchronously populated project progress widget with explicit cleanup. */
@@ -34,7 +34,7 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 	const element = document.createElement('section');
 	element.className = CYCLE_PROGRESS_CLASS;
 	element.setAttribute('contenteditable', 'false');
-	element.createDiv({ cls: 'tasknotes-views-cycle-progress__loading', text: 'Loading project progress…' });
+	element.createDiv({ cls: 'tasknotes-views-cycle-progress__loading', text: plugin.i18n.translate('progress.loading') });
 	let chart: CycleProgressChart | null = null;
 	let disposed = false;
 	let refreshTimer: number | null = null;
@@ -49,16 +49,16 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 			chart = null;
 			if (!progress) {
 				element.empty();
-				element.createDiv({ cls: 'tasknotes-views-cycle-progress__empty', text: 'Add valid scheduled and due dates to show project progress.' });
+				element.createDiv({ cls: 'tasknotes-views-cycle-progress__empty', text: plugin.i18n.translate('progress.missingDates') });
 				return;
 			}
-			chart = renderProgress(element, progress);
+			chart = renderProgress(element, progress, plugin);
 		} catch (error) {
 			console.error('[TaskNotes Views] Could not load project progress', {
 				projectPath: file.path,
 				error,
 			});
-			if (!disposed) element.setText('Could not load project progress.');
+			if (!disposed) element.setText(plugin.i18n.translate('progress.loadError'));
 		}
 	};
 	/** Coalesces bursts of TaskNotes events into one indexed reload. */
@@ -76,6 +76,7 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 		api.events.on('settings.changed', scheduleRefresh),
 	] : [];
 	const settingsRef = plugin.onSettingsChanged(scheduleRefresh);
+	const localeRef = plugin.i18n.on('locale-changed', scheduleRefresh);
 	void refresh();
 
 	return {
@@ -85,6 +86,7 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 			if (refreshTimer !== null) window.clearTimeout(refreshTimer);
 			for (const ref of eventRefs) api?.events?.off(ref);
 			plugin.offSettingsChanged(settingsRef);
+			plugin.i18n.offref(localeRef);
 			chart?.dispose();
 		},
 	};

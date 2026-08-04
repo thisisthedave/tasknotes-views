@@ -33,48 +33,49 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 
 	/** Returns Obsidian 1.13 searchable setting definitions. */
 	getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {
+		const t = this.taskNotesViewsPlugin.i18n.translate.bind(this.taskNotesViewsPlugin.i18n);
 		return [{
 			type: 'group',
-			heading: 'Project progress',
+			heading: t('settings.heading'),
 			items: [
 				{
-					name: 'Project start property',
-					desc: 'Frontmatter property containing the project start date.',
+					name: t('settings.projectStartProperty.name'),
+					desc: t('settings.projectStartProperty.description'),
 					control: { type: 'text', key: 'projectStartProperty', defaultValue: DEFAULT_SETTINGS.projectStartProperty, placeholder: 'scheduled' },
 				},
 				{
-					name: 'Project end property',
-					desc: 'Frontmatter property containing the project end date.',
+					name: t('settings.projectEndProperty.name'),
+					desc: t('settings.projectEndProperty.description'),
 					control: { type: 'text', key: 'projectEndProperty', defaultValue: DEFAULT_SETTINGS.projectEndProperty, placeholder: 'due' },
 				},
 				{
-					name: 'Derive date range from tasks',
-					desc: 'Use the earliest task start and latest task due date when both are available.',
+					name: t('settings.deriveDateRangeFromTasks.name'),
+					desc: t('settings.deriveDateRangeFromTasks.description'),
 					control: { type: 'toggle', key: 'deriveDateRangeFromTasks', defaultValue: DEFAULT_SETTINGS.deriveDateRangeFromTasks },
 				},
 				{
-					name: 'Scope property',
-					desc: 'Task property containing each task’s contribution to project scope, such as timeEstimate or points.',
+					name: t('settings.scopeProperty.name'),
+					desc: t('settings.scopeProperty.description'),
 					control: { type: 'text', key: 'scopeProperty', defaultValue: DEFAULT_SETTINGS.scopeProperty, placeholder: 'timeEstimate' },
 				},
 				{
-					name: 'Scope is a duration',
-					desc: 'Format scope as minutes and hours. Disable for unitless values such as story points.',
+					name: t('settings.scopeIsDuration.name'),
+					desc: t('settings.scopeIsDuration.description'),
 					control: { type: 'toggle', key: 'scopeIsDuration', defaultValue: DEFAULT_SETTINGS.scopeIsDuration },
 				},
 				{
-					name: 'Task started property',
-					desc: 'Task date property recording when progress began. Falls back to scheduled, completedDate, then the project start.',
+					name: t('settings.taskStartProperty.name'),
+					desc: t('settings.taskStartProperty.description'),
 					control: { type: 'text', key: 'taskStartProperty', defaultValue: DEFAULT_SETTINGS.taskStartProperty, placeholder: 'startedAt' },
 				},
 				{
-					name: 'In-progress statuses',
-					desc: 'Comma-separated status values that count toward started scope. Completed statuses are always included.',
+					name: t('settings.inProgressStatuses.name'),
+					desc: t('settings.inProgressStatuses.description'),
 					control: { type: 'text', key: 'inProgressStatuses', defaultValue: DEFAULT_SETTINGS.inProgressStatuses, placeholder: 'in-progress' },
 				},
 				{
-					name: 'Count weekends',
-					desc: 'Let the ideal burndown decline on Saturday and Sunday.',
+					name: t('settings.countWeekends.name'),
+					desc: t('settings.countWeekends.description'),
 					control: { type: 'toggle', key: 'countWeekends', defaultValue: DEFAULT_SETTINGS.countWeekends },
 				},
 			],
@@ -84,16 +85,17 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 	/** Renders the same controls on Obsidian versions that still invoke the legacy settings contract. */
 	display(): void {
 		const container = this.containerEl;
+		const t = this.taskNotesViewsPlugin.i18n.translate.bind(this.taskNotesViewsPlugin.i18n);
 		container.empty();
-		new Setting(container).setName('Project progress').setHeading();
-		this.addTextSetting('Project start property', 'Frontmatter property containing the project start date.', 'projectStartProperty', 'scheduled');
-		this.addTextSetting('Project end property', 'Frontmatter property containing the project end date.', 'projectEndProperty', 'due');
-		this.addToggleSetting('Derive date range from tasks', 'Use the earliest task start and latest task due date when both are available.', 'deriveDateRangeFromTasks');
-		this.addTextSetting('Scope property', 'Task property containing each task’s contribution to project scope, such as timeEstimate or points.', 'scopeProperty', 'timeEstimate');
-		this.addToggleSetting('Scope is a duration', 'Format scope as minutes and hours. Disable for unitless values such as story points.', 'scopeIsDuration');
-		this.addTextSetting('Task started property', 'Task date property recording when progress began. Falls back to scheduled, completedDate, then the project start.', 'taskStartProperty', 'startedAt');
-		this.addTextSetting('In-progress statuses', 'Comma-separated status values that count toward started scope. Completed statuses are always included.', 'inProgressStatuses', 'in-progress');
-		this.addToggleSetting('Count weekends', 'Let the ideal burndown decline on Saturday and Sunday.', 'countWeekends');
+		new Setting(container).setName(t('settings.heading')).setHeading();
+		this.addTextSetting(t('settings.projectStartProperty.name'), t('settings.projectStartProperty.description'), 'projectStartProperty', 'scheduled');
+		this.addTextSetting(t('settings.projectEndProperty.name'), t('settings.projectEndProperty.description'), 'projectEndProperty', 'due');
+		this.addToggleSetting(t('settings.deriveDateRangeFromTasks.name'), t('settings.deriveDateRangeFromTasks.description'), 'deriveDateRangeFromTasks');
+		this.addTextSetting(t('settings.scopeProperty.name'), t('settings.scopeProperty.description'), 'scopeProperty', 'timeEstimate');
+		this.addToggleSetting(t('settings.scopeIsDuration.name'), t('settings.scopeIsDuration.description'), 'scopeIsDuration');
+		this.addTextSetting(t('settings.taskStartProperty.name'), t('settings.taskStartProperty.description'), 'taskStartProperty', 'startedAt');
+		this.addTextSetting(t('settings.inProgressStatuses.name'), t('settings.inProgressStatuses.description'), 'inProgressStatuses', 'in-progress');
+		this.addToggleSetting(t('settings.countWeekends.name'), t('settings.countWeekends.description'), 'countWeekends');
 	}
 
 	/** Adds a persisted text control to the legacy settings renderer. */
