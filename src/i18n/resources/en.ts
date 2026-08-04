@@ -67,6 +67,10 @@ export const en = {
 				name: 'Cycle task rollover',
 				description: 'Automatically move eligible incomplete tasks when creating the next cycle.',
 			},
+			snapshotOnClose: {
+				name: 'Snapshot cycle progress on close',
+				description: 'Save immutable task membership and chart data before rollover changes project assignments.',
+			},
 		},
 	},
 	progress: {

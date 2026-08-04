@@ -4,13 +4,15 @@ import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { getCycleNumber, withCycleNumber } from './CycleNaming';
 import { CycleProjectService } from './CycleProjectService';
 import { CycleRolloverService } from './CycleRolloverService';
+import { CycleSnapshotService } from './CycleSnapshotService';
 import { getNextCycleDateRange } from './CycleSchedule';
 import { chooseProject, ProjectSuggestion } from './ProjectSuggestModal';
 
-/** Registers user-invoked cycle creation and task rollover commands. */
+/** Registers user-invoked cycle creation and close commands. */
 export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 	const projects = new CycleProjectService(plugin.app, plugin);
 	const rollover = new CycleRolloverService(plugin.app);
+	const snapshots = new CycleSnapshotService(plugin.app, plugin);
 
 	plugin.addCommand({
 		id: 'create-cycle',
@@ -21,6 +23,7 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 				const created = await projects.createCycle(inferred);
 				let moved = 0;
 				if (plugin.settings.cycleTaskRollover && inferred.previousProject) {
+					await snapshots.closeCycle(inferred.previousProject, 'automatic-rollover');
 					moved = await rollover.rollover(inferred.previousProject, created);
 				}
 				new Notice(moved > 0 ? `Created ${created.basename} and rolled over ${moved} tasks.` : `Created ${created.basename}.`);
@@ -33,23 +36,24 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 
 	plugin.addCommand({
 		id: 'rollover-cycle-tasks',
-		name: 'Rollover tasks',
+		name: 'Close cycle',
 		callback: async () => {
 			try {
-				await runRolloverCommand(plugin, projects, rollover);
+				await runCloseCycleCommand(plugin, projects, rollover, snapshots);
 			} catch (error) {
-				console.error('[TaskNotes Views] Could not rollover cycle tasks', error);
-				new Notice('Could not rollover tasks. Check the console for details.');
+				console.error('[TaskNotes Views] Could not close cycle', error);
+				new Notice('Could not close cycle. Check the console for details.');
 			}
 		},
 	});
 }
 
-/** Runs the two-project selection flow and creates a missing destination before moving tasks. */
-async function runRolloverCommand(
+/** Runs the two-project close flow, snapshots history, and moves eligible work forward. */
+async function runCloseCycleCommand(
 	plugin: TaskNotesViewsPlugin,
 	projects: CycleProjectService,
 	rollover: CycleRolloverService,
+	snapshots: CycleSnapshotService,
 ): Promise<void> {
 	const inferred = projects.inferNextCycle();
 	const active = plugin.app.workspace.getActiveFile();
@@ -81,8 +85,9 @@ async function runRolloverCommand(
 	if (!next) return;
 
 	const newProject = next.file ?? await createAdjacentCycle(plugin, projects, previous.file, next.createPath ?? prospectivePath);
+	await snapshots.closeCycle(previous.file, 'manual-close');
 	const count = await rollover.rollover(previous.file, newProject);
-	new Notice(`Rolled over ${count} task${count === 1 ? '' : 's'} to ${newProject.basename}.`);
+	new Notice(`Closed ${previous.file.basename} and rolled over ${count} task${count === 1 ? '' : 's'} to ${newProject.basename}.`);
 }
 
 /** Classifies the active project using its configured end date and the local calendar day. */

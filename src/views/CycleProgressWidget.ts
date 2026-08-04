@@ -1,6 +1,7 @@
 import { TFile } from 'obsidian';
 import type TaskNotesViewsPlugin from '../main';
-import { loadProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
+import { loadCycleSnapshotProgress } from '../cycles/CycleSnapshotService';
+import { loadLiveProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
 import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { CycleProgressChart, formatScopeValue } from './CycleProgressChart';
 
@@ -96,7 +97,9 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 	/** Reloads indexed project tasks and replaces the rendered chart atomically. */
 	const refresh = async (): Promise<void> => {
 		try {
-			const progress = await loadProjectProgress(plugin.app, file, plugin.settings);
+			// A linked close-time snapshot is authoritative; active projects continue to use live TaskNotes queries.
+			const progress = loadCycleSnapshotProgress(plugin.app, file) ??
+				await loadLiveProjectProgress(plugin.app, file, plugin.settings);
 			if (disposed) return;
 			chart?.dispose();
 			chart = null;

@@ -48,6 +48,13 @@ export default defineConfig(
 		},
 	},
 	{
+		files: ['tests/CycleSnapshot.test.ts'],
+		rules: {
+			// Narrow fake TFile instances are required because Obsidian has no runtime implementation under Vitest.
+			'obsidianmd/no-tfile-tfolder-cast': 'off',
+		},
+	},
+	{
 		files: ['vitest.config.ts'],
 		rules: {
 			// Vitest configuration executes under Node and is excluded from the mobile plugin bundle.

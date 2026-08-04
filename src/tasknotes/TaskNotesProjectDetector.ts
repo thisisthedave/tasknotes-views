@@ -54,6 +54,9 @@ function matchesProperty(frontmatter: Record<string, unknown> | undefined, setti
 
 /** Detects project notes using the same project index and autosuggest markers as TaskNotes relationships. */
 export function isTaskNotesProject(app: App, file: TFile): boolean {
+	const metadata = app.metadataCache.getFileCache(file);
+	// A closed cycle is self-describing and remains renderable even when TaskNotes is unavailable.
+	if (typeof metadata?.frontmatter?.cycleSnapshot === 'string') return true;
 	const taskNotes = getTaskNotesPlugin(app);
 	if (!taskNotes) return false;
 
@@ -61,7 +64,6 @@ export function isTaskNotesProject(app: App, file: TFile): boolean {
 	if (taskNotes.dependencyCache?.isFileUsedAsProject(file.path)) return true;
 	const autosuggest = taskNotes.settings?.projectAutosuggest;
 	if (!autosuggest) return false;
-	const metadata = app.metadataCache.getFileCache(file);
 	return matchesRequiredTags(collectTags(metadata), autosuggest.requiredTags ?? []) ||
 		matchesProperty(metadata?.frontmatter, autosuggest);
 }

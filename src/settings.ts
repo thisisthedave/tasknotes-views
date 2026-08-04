@@ -18,6 +18,7 @@ export interface TaskNotesViewsSettings {
 	cycleStartDay: CycleStartDay;
 	cycleDurationWeeks: number;
 	cycleTaskRollover: boolean;
+	snapshotCycleProgressOnClose: boolean;
 }
 
 export type CycleStartDay = 'current' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	cycleStartDay: 'monday',
 	cycleDurationWeeks: 2,
 	cycleTaskRollover: false,
+	snapshotCycleProgressOnClose: true,
 };
 
 type SettingsKey = keyof TaskNotesViewsSettings;
@@ -141,6 +143,11 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					desc: t('settings.cycles.rollover.description'),
 					control: { type: 'toggle', key: 'cycleTaskRollover', defaultValue: DEFAULT_SETTINGS.cycleTaskRollover },
 				},
+				{
+					name: t('settings.cycles.snapshotOnClose.name'),
+					desc: t('settings.cycles.snapshotOnClose.description'),
+					control: { type: 'toggle', key: 'snapshotCycleProgressOnClose', defaultValue: DEFAULT_SETTINGS.snapshotCycleProgressOnClose },
+				},
 			],
 		}];
 	}
@@ -187,6 +194,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					await this.taskNotesViewsPlugin.saveSettings();
 				}));
 		this.addToggleSetting(t('settings.cycles.rollover.name'), t('settings.cycles.rollover.description'), 'cycleTaskRollover');
+		this.addToggleSetting(t('settings.cycles.snapshotOnClose.name'), t('settings.cycles.snapshotOnClose.description'), 'snapshotCycleProgressOnClose');
 	}
 
 	/** Adds a persisted text control to the legacy settings renderer. */
@@ -204,7 +212,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 	}
 
 	/** Adds a persisted toggle control to the legacy settings renderer. */
-	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover'): void {
+	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover' | 'snapshotCycleProgressOnClose'): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)

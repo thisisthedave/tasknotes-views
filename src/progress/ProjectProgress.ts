@@ -187,7 +187,7 @@ export function buildProjectProgress(
 }
 
 /** Loads project dates and matching project tasks through Obsidian and TaskNotes' public query API. */
-export async function loadProjectProgress(app: App, file: TFile, settings: TaskNotesViewsSettings): Promise<ProjectProgress | null> {
+export async function loadLiveProjectProgress(app: App, file: TFile, settings: TaskNotesViewsSettings): Promise<ProjectProgress | null> {
 	const cachedFrontmatter: unknown = app.metadataCache.getFileCache(file)?.frontmatter;
 	const frontmatter = cachedFrontmatter && typeof cachedFrontmatter === 'object' ? cachedFrontmatter as Record<string, unknown> : undefined;
 	const api = getTaskNotesApi(app);

@@ -12,9 +12,12 @@ The npm version lifecycle moves these entries into the versioned release page.
 - Added cycle settings for the project folder, optional Templater template, start weekday, duration, and automatic incomplete-task rollover.
 - Added support for inheriting an empty cycle project folder from TaskNotes' configured default tasks folder.
 - Added optional Templater processing for new cycle notes, with blank-note creation when Templater or a template is unavailable.
-- Added a **Rollover tasks** command with fuzzy previous- and next-project selectors and adjacent `-N` cycle-name suggestions.
+- Added a **Close cycle** command with fuzzy previous- and next-project selectors and adjacent `-N` cycle-name suggestions.
 - Added automatic destination-cycle creation when rolling tasks forward to a cycle project that does not exist yet.
 - Added idempotent rollover of incomplete TaskNotes tasks that replaces only the previous cycle assignment, preserves unrelated project assignments, and excludes completed, skipped, cancelled, and archived work.
+- Added default-on cycle snapshots that freeze task membership, task properties, capacity inputs, and chart data before close-time rollover changes the live project assignments.
+- Added linked snapshot notes under each cycle folder's `Cycle snapshots` directory and close metadata on the cycle project note.
+- Added historical graph rendering from immutable snapshot data whenever a closed cycle links to a snapshot.
 - Added a hover and keyboard-focus summary on **Scope / Capacity** showing the historical completion window, completion count, weighted weekly velocity, project workdays, and resulting capacity.
 
 ## Fixed
