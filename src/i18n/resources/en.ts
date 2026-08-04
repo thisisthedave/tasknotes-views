@@ -21,6 +21,10 @@ export const en = {
 			name: 'Scope is a duration',
 			description: 'Format scope as minutes and hours. Disable for unitless values such as story points.',
 		},
+		estimateCapacityFromVelocity: {
+			name: 'Estimate capacity from past velocity',
+			description: 'Estimate project capacity from six weeks of recent completed task scope, weighted toward newer work.',
+		},
 		taskStartProperty: {
 			name: 'Task started property',
 			description: 'Task date property recording when progress began.',
@@ -46,10 +50,12 @@ export const en = {
 		loadError: 'Could not load project progress.',
 		metrics: {
 			scope: 'Scope',
+			scopeCapacity: 'Scope / Capacity',
 			scheduled: 'Scheduled',
 			started: 'Started',
 			completed: 'Completed',
 		},
+		insufficientCapacityData: 'Not enough historical data to estimate capacity.',
 		chart: {
 			minutesAxis: 'Minutes',
 			scopeAxis: 'Scope',

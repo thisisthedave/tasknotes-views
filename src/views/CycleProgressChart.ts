@@ -50,7 +50,11 @@ function formatProgressTooltip(parameters: unknown, progress: ProjectProgress, i
 		[i18n.translate('progress.chart.startedSeries'), point?.startedTasks ?? []],
 		[i18n.translate('progress.chart.completedSeries'), point?.completedTasks ?? []],
 	]);
-	const rows = series.filter((parameter) => typeof parameter.value === 'number').map((parameter) => {
+	const omittedSeries = new Set([
+		i18n.translate('progress.chart.scopeSeries'),
+		i18n.translate('progress.chart.targetSeries'),
+	]);
+	const rows = series.filter((parameter) => typeof parameter.value === 'number' && !omittedSeries.has(parameter.seriesName ?? '')).map((parameter) => {
 		const name = parameter.seriesName ?? '';
 		const value = formatScopeValue(Number(parameter.value), progress.scopeIsDuration, i18n);
 		const tasks = taskLists.get(name) ?? [];

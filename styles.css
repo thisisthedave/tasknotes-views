@@ -19,6 +19,17 @@
 	font-size: var(--font-ui-medium);
 }
 
+.tasknotes-views-cycle-progress__heading-title {
+	min-width: 0;
+}
+
+.tasknotes-views-cycle-progress__capacity-notice {
+	margin-top: 0.2rem;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+}
+
 .tasknotes-views-cycle-progress__heading span {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);

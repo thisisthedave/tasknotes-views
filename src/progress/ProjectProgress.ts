@@ -2,6 +2,7 @@ import { App, TFile } from 'obsidian';
 import { TaskNotesViewsSettings } from '../settings';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 import { buildProgressWorkItems } from './OccurrenceProjection';
+import { estimateProjectCapacity } from './Velocity';
 
 export interface ProjectProgressPoint {
 	date: string;
@@ -30,6 +31,7 @@ export interface ProjectProgress {
 	completed: number;
 	today: string;
 	scopeIsDuration: boolean;
+	estimatedCapacity?: number | null;
 	points: ProjectProgressPoint[];
 }
 
@@ -213,7 +215,7 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 	const statuses = api.catalog.statuses();
 	const completedStatuses = new Set(statuses.filter((status) => status.isCompleted).map((status) => status.value));
 	const skippedStatuses = new Set(statuses.filter((status) => status.isSkipped).map((status) => status.value));
-	return buildProjectProgress(file.basename, startDate, endDate, result.tasks, completedStatuses, {
+	const progress = buildProjectProgress(file.basename, startDate, endDate, result.tasks, completedStatuses, {
 		scopeProperty: settings.scopeProperty,
 		taskStartProperty: settings.taskStartProperty,
 		taskScheduledProperty: settings.taskScheduledProperty,
@@ -221,4 +223,17 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 		scopeIsDuration: settings.scopeIsDuration,
 		countWeekends: settings.countWeekends,
 	}, allTasks, skippedStatuses);
+	if (progress && settings.estimateCapacityFromVelocity) {
+		// Capacity is based on vault-wide completed work before this reporting window, not the project's own planned scope.
+		progress.estimatedCapacity = estimateProjectCapacity(allTasks, startDate, endDate, {
+			scopeProperty: settings.scopeProperty,
+			taskStartProperty: settings.taskStartProperty,
+			taskScheduledProperty: settings.taskScheduledProperty,
+			inProgressStatuses: new Set(settings.inProgressStatuses.split(',').map((status) => status.trim()).filter(Boolean)),
+			completedStatuses,
+			skippedStatuses,
+			countWeekends: settings.countWeekends,
+		});
+	}
+	return progress;
 }

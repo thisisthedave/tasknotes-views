@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildProjectProgress, resolveProjectDateRange } from '../src/progress/ProjectProgress';
 import { getActualSeriesData } from '../src/views/CycleProgressChart';
+import { estimateProjectCapacity } from '../src/progress/Velocity';
 
 const DEFAULT_OPTIONS = {
 	scopeProperty: 'timeEstimate',
@@ -13,6 +14,35 @@ const DEFAULT_OPTIONS = {
 };
 
 describe('buildProjectProgress', () => {
+	it('estimates one project week of capacity from recency-weighted completion weeks', () => {
+		const capacity = estimateProjectCapacity([
+			{ path: 'old.md', status: 'done', completedDate: '2026-06-22', timeEstimate: 10 },
+			{ path: 'recent.md', status: 'done', completedDate: '2026-07-20', timeEstimate: 10 },
+			{ path: 'newest.md', status: 'done', completedDate: '2026-08-02', timeEstimate: 10 },
+		], '2026-08-03', '2026-08-07', {
+			...DEFAULT_OPTIONS,
+			inProgressStatuses: new Set(DEFAULT_OPTIONS.inProgressStatuses),
+			completedStatuses: new Set(['done']),
+			skippedStatuses: new Set(),
+		});
+
+		expect(capacity).toBeCloseTo(120 / 21);
+	});
+
+	it('does not estimate capacity from sparse completion history', () => {
+		const capacity = estimateProjectCapacity([
+			{ path: 'one.md', status: 'done', completedDate: '2026-07-20', timeEstimate: 10 },
+			{ path: 'two.md', status: 'done', completedDate: '2026-08-02', timeEstimate: 10 },
+		], '2026-08-03', '2026-08-07', {
+			...DEFAULT_OPTIONS,
+			inProgressStatuses: new Set(DEFAULT_OPTIONS.inProgressStatuses),
+			completedStatuses: new Set(['done']),
+			skippedStatuses: new Set(),
+		});
+
+		expect(capacity).toBeNull();
+	});
+
 	it('prefers explicit project dates and derives only missing boundaries', () => {
 		const tasks = [
 			{ path: 'early.md', status: 'open', scheduled: '2026-07-01', due: '2026-09-30', customProperties: { startedAt: '2026-06-20' } },

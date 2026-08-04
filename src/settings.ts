@@ -10,6 +10,7 @@ export interface TaskNotesViewsSettings {
 	taskScheduledProperty: string;
 	inProgressStatuses: string;
 	scopeIsDuration: boolean;
+	estimateCapacityFromVelocity: boolean;
 	countWeekends: boolean;
 }
 
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	taskScheduledProperty: 'scheduled',
 	inProgressStatuses: 'in-progress',
 	scopeIsDuration: true,
+	estimateCapacityFromVelocity: false,
 	countWeekends: false,
 };
 
@@ -66,6 +68,11 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					control: { type: 'toggle', key: 'scopeIsDuration', defaultValue: DEFAULT_SETTINGS.scopeIsDuration },
 				},
 				{
+					name: t('settings.estimateCapacityFromVelocity.name'),
+					desc: t('settings.estimateCapacityFromVelocity.description'),
+					control: { type: 'toggle', key: 'estimateCapacityFromVelocity', defaultValue: DEFAULT_SETTINGS.estimateCapacityFromVelocity },
+				},
+				{
 					name: t('settings.taskStartProperty.name'),
 					desc: t('settings.taskStartProperty.description'),
 					control: { type: 'text', key: 'taskStartProperty', defaultValue: DEFAULT_SETTINGS.taskStartProperty, placeholder: 'startedAt' },
@@ -100,6 +107,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 		this.addToggleSetting(t('settings.deriveDateRangeFromTasks.name'), t('settings.deriveDateRangeFromTasks.description'), 'deriveDateRangeFromTasks');
 		this.addTextSetting(t('settings.scopeProperty.name'), t('settings.scopeProperty.description'), 'scopeProperty', 'timeEstimate');
 		this.addToggleSetting(t('settings.scopeIsDuration.name'), t('settings.scopeIsDuration.description'), 'scopeIsDuration');
+		this.addToggleSetting(t('settings.estimateCapacityFromVelocity.name'), t('settings.estimateCapacityFromVelocity.description'), 'estimateCapacityFromVelocity');
 		this.addTextSetting(t('settings.taskStartProperty.name'), t('settings.taskStartProperty.description'), 'taskStartProperty', 'startedAt');
 		this.addTextSetting(t('settings.taskScheduledProperty.name'), t('settings.taskScheduledProperty.description'), 'taskScheduledProperty', 'scheduled');
 		this.addTextSetting(t('settings.inProgressStatuses.name'), t('settings.inProgressStatuses.description'), 'inProgressStatuses', 'in-progress');
@@ -121,7 +129,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 	}
 
 	/** Adds a persisted toggle control to the legacy settings renderer. */
-	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'countWeekends'): void {
+	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends'): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)
