@@ -10,9 +10,14 @@ export interface ProjectProgressPoint {
 	scheduled: number;
 	started: number;
 	completed: number;
-	scheduledTasks: string[];
-	startedTasks: string[];
-	completedTasks: string[];
+	scheduledTasks: ProjectProgressTask[];
+	startedTasks: ProjectProgressTask[];
+	completedTasks: ProjectProgressTask[];
+}
+
+export interface ProjectProgressTask {
+	name: string;
+	scope: number;
 }
 
 export interface ProjectProgress {
@@ -142,9 +147,9 @@ export function buildProjectProgress(
 		const completed = workItems.reduce((sum, item) => {
 			return item.completedDate && clampDate(item.completedDate, startDate, endDate) <= current ? sum + item.scope : sum;
 		}, 0);
-		const scheduledTasks = workItems.filter((item) => item.scheduledDate && clampDate(item.scheduledDate, startDate, endDate) === current).map((item) => item.name);
-		const startedTasks = workItems.filter((item) => item.startedDate && clampDate(item.startedDate, startDate, endDate) === current).map((item) => item.name);
-		const completedTasks = workItems.filter((item) => item.completedDate && clampDate(item.completedDate, startDate, endDate) === current).map((item) => item.name);
+		const scheduledTasks = workItems.filter((item) => item.scheduledDate && clampDate(item.scheduledDate, startDate, endDate) === current).map((item) => ({ name: item.name, scope: item.scope }));
+		const startedTasks = workItems.filter((item) => item.startedDate && clampDate(item.startedDate, startDate, endDate) === current).map((item) => ({ name: item.name, scope: item.scope }));
+		const completedTasks = workItems.filter((item) => item.completedDate && clampDate(item.completedDate, startDate, endDate) === current).map((item) => ({ name: item.name, scope: item.scope }));
 		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed, scheduledTasks, startedTasks, completedTasks };
 	});
 	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, today, scopeIsDuration: options.scopeIsDuration, points };

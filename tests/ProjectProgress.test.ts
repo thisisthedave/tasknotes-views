@@ -68,7 +68,9 @@ describe('buildProjectProgress', () => {
 			customProperties: { startedAt: '2026-08-04T15:09:55.802Z' },
 		}], new Set(['done']), DEFAULT_OPTIONS);
 		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 15, 15]);
-		expect(progress?.points.find((point) => point.date === '2026-08-04')?.startedTasks).toEqual(['Polish the sentient cauldron']);
+		expect(progress?.points.find((point) => point.date === '2026-08-04')?.startedTasks).toEqual([
+			{ name: 'Polish the sentient cauldron', scope: 15 },
+		]);
 	});
 
 	it('does not use scheduled or project start when a started task has no actual date', () => {

@@ -3,7 +3,7 @@ import { GridComponent, MarkLineComponent, TooltipComponent } from 'echarts/comp
 import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { I18nService } from '../i18n';
-import { ProjectProgress } from '../progress/ProjectProgress';
+import { ProjectProgress, ProjectProgressTask } from '../progress/ProjectProgress';
 
 use([LineChart, GridComponent, MarkLineComponent, TooltipComponent, CanvasRenderer]);
 
@@ -45,7 +45,7 @@ function formatProgressTooltip(parameters: unknown, progress: ProjectProgress, i
 	const series = parameters as TooltipSeriesParameter[];
 	const pointIndex = series[0]?.dataIndex;
 	const point = pointIndex === undefined ? undefined : progress.points[pointIndex];
-	const taskLists = new Map<string, string[]>([
+	const taskLists = new Map<string, ProjectProgressTask[]>([
 		[i18n.translate('progress.chart.scheduledSeries'), point?.scheduledTasks ?? []],
 		[i18n.translate('progress.chart.startedSeries'), point?.startedTasks ?? []],
 		[i18n.translate('progress.chart.completedSeries'), point?.completedTasks ?? []],
@@ -53,8 +53,11 @@ function formatProgressTooltip(parameters: unknown, progress: ProjectProgress, i
 	const rows = series.filter((parameter) => typeof parameter.value === 'number').map((parameter) => {
 		const name = parameter.seriesName ?? '';
 		const value = formatScopeValue(Number(parameter.value), progress.scopeIsDuration, i18n);
-		const tasks = [...new Set(taskLists.get(name) ?? [])];
-		const taskRows = tasks.map((task) => `<div style="margin-left:18px;color:#888">• ${escapeHtml(task)}</div>`).join('');
+		const tasks = taskLists.get(name) ?? [];
+		const taskRows = tasks.map((task) => {
+			const scope = formatScopeValue(task.scope, progress.scopeIsDuration, i18n);
+			return `<div style="margin-left:18px;color:#888">• [${escapeHtml(scope)}] ${escapeHtml(task.name)}</div>`;
+		}).join('');
 		return `<div>${parameter.marker ?? ''}${escapeHtml(name)}<span style="float:right;margin-left:24px;font-weight:600">${escapeHtml(value)}</span></div>${taskRows}`;
 	});
 	return `<div style="margin-bottom:4px">${escapeHtml(series[0]?.axisValue ?? '')}</div>${rows.join('')}`;
