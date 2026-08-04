@@ -1,6 +1,7 @@
 import { App, TFile } from 'obsidian';
 import { TaskNotesViewsSettings } from '../settings';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
+import { buildProgressWorkItems } from './OccurrenceProjection';
 
 export interface ProjectProgressPoint {
 	date: string;
@@ -91,25 +92,6 @@ function targetProgress(dates: Date[], scope: number, countWeekends: boolean): n
 	});
 }
 
-/** Reads a core or custom TaskNotes property without assuming its storage location. */
-function getTaskProperty(task: TaskNotesTask, property: string): unknown {
-	const coreValue = task[property];
-	return coreValue !== undefined ? coreValue : task.customProperties?.[property];
-}
-
-/** Converts a configured task property into a positive numeric scope contribution. */
-function getTaskScope(task: TaskNotesTask, property: string): number {
-	const value = getTaskProperty(task, property);
-	const numericValue = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
-	return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0;
-}
-
-/** Reads a configured task property when it contains a valid calendar date. */
-function getTaskDate(task: TaskNotesTask, property: string): string | undefined {
-	const value = getTaskProperty(task, property);
-	return normalizeDate(value) ?? undefined;
-}
-
 /** Reads and normalizes a date property from project frontmatter. */
 function getProjectDate(frontmatter: Record<string, unknown> | undefined, property: string): string {
 	return normalizeDate(frontmatter?.[property]) ?? '';
@@ -123,32 +105,36 @@ export function buildProjectProgress(
 	tasks: TaskNotesTask[],
 	completedStatuses: Set<string>,
 	options: ProjectProgressOptions,
+	allTasks: TaskNotesTask[] = tasks,
+	skippedStatuses: Set<string> = new Set(),
 ): ProjectProgress | null {
 	const start = parseDate(startDate);
 	const end = parseDate(endDate);
 	if (!start || !end || end < start) return null;
 	const dates = enumerateDates(start, end);
-	const estimatedTasks = tasks.map((task) => ({ task, scope: getTaskScope(task, options.scopeProperty) })).filter((entry) => entry.scope > 0);
-	const scope = estimatedTasks.reduce((sum, entry) => sum + entry.scope, 0);
-	const isCompleted = (task: TaskNotesTask) => completedStatuses.has(task.status);
 	const inProgressStatuses = new Set(options.inProgressStatuses);
-	const isStarted = (task: TaskNotesTask) => inProgressStatuses.has(task.status) || isCompleted(task);
+	const workItems = buildProgressWorkItems(tasks, allTasks, startDate, endDate, {
+		scopeProperty: options.scopeProperty,
+		taskStartProperty: options.taskStartProperty,
+		taskScheduledProperty: options.taskScheduledProperty,
+		inProgressStatuses,
+		completedStatuses,
+		skippedStatuses,
+	});
+	const scope = workItems.reduce((sum, item) => sum + item.scope, 0);
 	const target = targetProgress(dates, scope, options.countWeekends);
 
 	// Status history is not public, so scheduled/completed dates anchor cumulative state changes on the timeline.
 	const points = dates.map((date, index) => {
 		const current = formatDate(date);
-		const scheduled = estimatedTasks.reduce((sum, entry) => {
-			const scheduledDate = getTaskDate(entry.task, options.taskScheduledProperty);
-			return scheduledDate && clampDate(scheduledDate, startDate, endDate) <= current ? sum + entry.scope : sum;
+		const scheduled = workItems.reduce((sum, item) => {
+			return item.scheduledDate && clampDate(item.scheduledDate, startDate, endDate) <= current ? sum + item.scope : sum;
 		}, 0);
-		const started = estimatedTasks.filter(({ task }) => isStarted(task)).reduce((sum, entry) => {
-			const startedDate = getTaskDate(entry.task, options.taskStartProperty) ?? getTaskDate(entry.task, 'completedDate');
-			return startedDate && clampDate(startedDate, startDate, endDate) <= current ? sum + entry.scope : sum;
+		const started = workItems.reduce((sum, item) => {
+			return item.startedDate && clampDate(item.startedDate, startDate, endDate) <= current ? sum + item.scope : sum;
 		}, 0);
-		const completed = estimatedTasks.filter(({ task }) => isCompleted(task)).reduce((sum, entry) => {
-			const completedDate = getTaskDate(entry.task, 'completedDate');
-			return completedDate && clampDate(completedDate, startDate, endDate) <= current ? sum + entry.scope : sum;
+		const completed = workItems.reduce((sum, item) => {
+			return item.completedDate && clampDate(item.completedDate, startDate, endDate) <= current ? sum + item.scope : sum;
 		}, 0);
 		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed };
 	});
@@ -162,7 +148,7 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 	const api = getTaskNotesApi(app);
 	if (!api) return null;
 	const projectPath = file.path.replace(/\.md$/i, '');
-	const result = await api.query.tasks({
+	const [result, allTasks] = await Promise.all([api.query.tasks({
 		where: {
 			field: 'task.projects',
 			op: 'contains',
@@ -171,14 +157,16 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 		scope: {
 			includeArchived: false,
 		},
-	});
+	}), api.tasks.list()]);
 	const projectStart = getProjectDate(frontmatter, settings.projectStartProperty);
 	const projectEnd = getProjectDate(frontmatter, settings.projectEndProperty);
 	const scheduledDates = result.tasks.map((task) => normalizeDate(task.scheduled)).filter((date): date is string => date !== null).sort();
 	const dueDates = result.tasks.map((task) => normalizeDate(task.due)).filter((date): date is string => date !== null).sort();
 	const startDate = settings.deriveDateRangeFromTasks && scheduledDates.length > 0 ? scheduledDates[0] as string : projectStart;
 	const endDate = settings.deriveDateRangeFromTasks && dueDates.length > 0 ? dueDates.at(-1) as string : projectEnd;
-	const completedStatuses = new Set(api.catalog.statuses().filter((status) => status.isCompleted).map((status) => status.value));
+	const statuses = api.catalog.statuses();
+	const completedStatuses = new Set(statuses.filter((status) => status.isCompleted).map((status) => status.value));
+	const skippedStatuses = new Set(statuses.filter((status) => status.isSkipped).map((status) => status.value));
 	return buildProjectProgress(file.basename, startDate, endDate, result.tasks, completedStatuses, {
 		scopeProperty: settings.scopeProperty,
 		taskStartProperty: settings.taskStartProperty,
@@ -186,5 +174,5 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 		inProgressStatuses: settings.inProgressStatuses.split(',').map((status) => status.trim()).filter(Boolean),
 		scopeIsDuration: settings.scopeIsDuration,
 		countWeekends: settings.countWeekends,
-	});
+	}, allTasks, skippedStatuses);
 }

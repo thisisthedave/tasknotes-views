@@ -76,4 +76,96 @@ describe('buildProjectProgress', () => {
 		}], new Set(['done']), DEFAULT_OPTIONS);
 		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 0, 0]);
 	});
+
+	it('projects virtual recurring occurrences and excludes skipped dates from scope', () => {
+		const parent = {
+			path: 'Tasks/cauldron.md',
+			status: 'open',
+			recurrence: 'DTSTART:20260802;FREQ=WEEKLY;INTERVAL=1;BYDAY=SU',
+			scheduled: '2026-08-30',
+			timeEstimate: 15,
+			complete_instances: ['2026-08-02'],
+			skipped_instances: ['2026-08-09'],
+		};
+		const progress = buildProjectProgress('Cycle', '2026-08-01', '2026-08-09', [parent], new Set(['done']), DEFAULT_OPTIONS);
+		expect(progress?.scope).toBe(15);
+		expect(progress?.scheduled).toBe(15);
+		expect(progress?.started).toBe(15);
+		expect(progress?.completed).toBe(15);
+	});
+
+	it('uses materialized estimates and suppresses projections moved to another project', () => {
+		const parent = {
+			path: 'Tasks/cauldron.md',
+			status: 'open',
+			recurrence: 'DTSTART:20260802;FREQ=WEEKLY;INTERVAL=1;BYDAY=SU',
+			scheduled: '2026-08-30',
+			timeEstimate: 10,
+			complete_instances: ['2026-08-02'],
+			skipped_instances: [],
+		};
+		const completedOccurrence = {
+			path: 'Tasks/cauldron-2026-08-02.md',
+			status: 'done',
+			recurrence_parent: '[[cauldron]]',
+			occurrence_date: '2026-08-02',
+			scheduled: '2026-08-02',
+			completedDate: '2026-08-03',
+			timeEstimate: 20,
+		};
+		const reassignedOccurrence = {
+			path: 'Tasks/cauldron-2026-08-09.md',
+			status: 'open',
+			recurrence_parent: '[[Tasks/cauldron]]',
+			occurrence_date: '2026-08-09',
+			scheduled: '2026-08-09',
+			timeEstimate: 30,
+		};
+		const projectTasks = [parent, completedOccurrence];
+		const allTasks = [parent, completedOccurrence, reassignedOccurrence];
+		const progress = buildProjectProgress(
+			'Cycle',
+			'2026-08-01',
+			'2026-08-09',
+			projectTasks,
+			new Set(['done']),
+			DEFAULT_OPTIONS,
+			allTasks,
+		);
+		expect(progress?.scope).toBe(20);
+		expect(progress?.scheduled).toBe(20);
+		expect(progress?.started).toBe(20);
+		expect(progress?.completed).toBe(20);
+		expect(progress?.points.find((point) => point.date === '2026-08-02')?.completed).toBe(0);
+		expect(progress?.points.find((point) => point.date === '2026-08-03')?.completed).toBe(20);
+	});
+
+	it('excludes materialized occurrences whose status is configured as skipped', () => {
+		const parent = {
+			path: 'Tasks/cauldron.md',
+			status: 'open',
+			recurrence: 'DTSTART:20260802;FREQ=WEEKLY;BYDAY=SU',
+			timeEstimate: 10,
+		};
+		const skippedOccurrence = {
+			path: 'Tasks/cauldron-2026-08-02.md',
+			status: 'skipped',
+			recurrence_parent: '[[cauldron]]',
+			occurrence_date: '2026-08-02',
+			timeEstimate: 50,
+		};
+		const progress = buildProjectProgress(
+			'Cycle',
+			'2026-08-01',
+			'2026-08-02',
+			[parent, skippedOccurrence],
+			new Set(['done']),
+			DEFAULT_OPTIONS,
+			[parent, skippedOccurrence],
+			new Set(['skipped']),
+		);
+		expect(progress?.scope).toBe(0);
+		expect(progress?.started).toBe(0);
+		expect(progress?.completed).toBe(0);
+	});
 });

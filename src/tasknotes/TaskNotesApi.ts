@@ -3,6 +3,7 @@ import { App, EventRef } from 'obsidian';
 export interface TaskNotesStatus {
 	value: string;
 	isCompleted: boolean;
+	isSkipped?: boolean;
 }
 
 export interface TaskNotesTask {
@@ -13,6 +14,13 @@ export interface TaskNotesTask {
 	completedDate?: string;
 	timeEstimate?: number;
 	due?: string;
+	projects?: string[];
+	recurrence?: string;
+	recurrence_parent?: string;
+	occurrence_date?: string;
+	complete_instances?: string[];
+	skipped_instances?: string[];
+	dateCreated?: string;
 	customProperties?: Record<string, unknown>;
 }
 
@@ -26,6 +34,7 @@ interface TaskNotesApiShape {
 			scope: { includeArchived: false };
 		}): Promise<{ tasks: TaskNotesTask[] }>;
 	};
+	tasks: { list(): Promise<TaskNotesTask[]> };
 	events?: {
 		on(event: 'task.updated' | 'settings.changed', handler: () => void): EventRef;
 		off(ref: EventRef): void;
@@ -42,6 +51,6 @@ export function getTaskNotesApi(app: App): TaskNotesApiShape | null {
 	const plugin = plugins?.getPlugin('tasknotes');
 	if (!plugin || typeof plugin !== 'object') return null;
 	const api = (plugin as TaskNotesPluginShape).api;
-	if (!api || api.apiVersion !== 1 || !api.hasCapability('query.tasks') || !api.hasCapability('catalog.read')) return null;
+	if (!api || api.apiVersion !== 1 || !api.hasCapability('query.tasks') || !api.hasCapability('tasks.read') || !api.hasCapability('catalog.read')) return null;
 	return api;
 }
