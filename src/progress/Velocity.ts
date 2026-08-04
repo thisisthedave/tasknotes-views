@@ -11,6 +11,16 @@ export interface CapacityEstimateOptions extends OccurrenceProjectionOptions {
 	countWeekends: boolean;
 }
 
+export interface CapacityCalculation {
+	capacity: number;
+	weeklyVelocity: number;
+	projectDays: number;
+	daysPerWeek: number;
+	historyStart: string;
+	historyEnd: string;
+	completionCount: number;
+}
+
 /** Formats a UTC date as a stable date-only value. */
 function formatDate(date: Date): string {
 	return date.toISOString().slice(0, 10);
@@ -27,12 +37,12 @@ function countProjectDays(start: Date, end: Date, countWeekends: boolean): numbe
 }
 
 /** Estimates capacity from six prior weekly completion buckets, favoring more recent weeks with linear weights. */
-export function estimateProjectCapacity(
+export function calculateProjectCapacity(
 	allTasks: TaskNotesTask[],
 	projectStartDate: string,
 	projectEndDate: string,
 	options: CapacityEstimateOptions,
-): number | null {
+): CapacityCalculation | null {
 	const projectStart = new Date(`${projectStartDate}T00:00:00Z`);
 	const projectEnd = new Date(`${projectEndDate}T00:00:00Z`);
 	if (Number.isNaN(projectStart.getTime()) || Number.isNaN(projectEnd.getTime()) || projectEnd < projectStart) return null;
@@ -58,5 +68,23 @@ export function estimateProjectCapacity(
 		/ weights.reduce((sum, weight) => sum + weight, 0);
 	const projectDays = countProjectDays(projectStart, projectEnd, options.countWeekends);
 	const daysPerWeek = options.countWeekends ? 7 : 5;
-	return weeklyVelocity * projectDays / daysPerWeek;
+	return {
+		capacity: weeklyVelocity * projectDays / daysPerWeek,
+		weeklyVelocity,
+		projectDays,
+		daysPerWeek,
+		historyStart: formatDate(historyStart),
+		historyEnd: formatDate(historyEnd),
+		completionCount: workItems.length,
+	};
+}
+
+/** Returns only the capacity value for callers that do not need calculation provenance. */
+export function estimateProjectCapacity(
+	allTasks: TaskNotesTask[],
+	projectStartDate: string,
+	projectEndDate: string,
+	options: CapacityEstimateOptions,
+): number | null {
+	return calculateProjectCapacity(allTasks, projectStartDate, projectEndDate, options)?.capacity ?? null;
 }

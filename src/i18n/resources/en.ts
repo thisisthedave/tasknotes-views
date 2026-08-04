@@ -83,6 +83,7 @@ export const en = {
 			completed: 'Completed',
 		},
 		insufficientCapacityData: 'Not enough historical data to estimate capacity.',
+		capacityCalculation: '{completionCount} completions from {historyStart}–{historyEnd} produced {weeklyVelocity}/week. {projectDays} project days ÷ {daysPerWeek} days/week = {capacity} capacity.',
 		chart: {
 			minutesAxis: 'Minutes',
 			scopeAxis: 'Scope',

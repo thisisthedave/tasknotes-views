@@ -77,6 +77,39 @@
 	color: var(--text-muted);
 }
 
+.tasknotes-views-cycle-progress__metric-label.has-capacity-tooltip {
+	display: inline-block;
+	cursor: help;
+}
+
+.tasknotes-views-cycle-progress__capacity-tooltip {
+	position: absolute;
+	z-index: var(--layer-popover);
+	bottom: calc(100% + 0.4rem);
+	left: 0;
+	visibility: hidden;
+	width: max-content;
+	max-width: min(24rem, 80vw);
+	padding: 0.45rem 0.6rem;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+	line-height: var(--line-height-normal);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 80ms ease-out, visibility 80ms ease-out;
+}
+
+.tasknotes-views-cycle-progress__metric-label.has-capacity-tooltip:hover + .tasknotes-views-cycle-progress__capacity-tooltip,
+.tasknotes-views-cycle-progress__metric-label.has-capacity-tooltip:focus-visible + .tasknotes-views-cycle-progress__capacity-tooltip {
+	visibility: visible;
+	opacity: 1;
+}
+
 .tasknotes-views-cycle-progress__metric-value {
 	font-size: var(--font-ui-medium);
 	font-weight: var(--font-semibold);

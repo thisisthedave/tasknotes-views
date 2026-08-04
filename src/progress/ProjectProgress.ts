@@ -2,7 +2,7 @@ import { App, TFile } from 'obsidian';
 import { TaskNotesViewsSettings } from '../settings';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 import { buildProgressWorkItems } from './OccurrenceProjection';
-import { estimateProjectCapacity } from './Velocity';
+import { calculateProjectCapacity, CapacityCalculation } from './Velocity';
 
 export interface ProjectProgressPoint {
 	date: string;
@@ -32,6 +32,7 @@ export interface ProjectProgress {
 	today: string;
 	scopeIsDuration: boolean;
 	estimatedCapacity?: number | null;
+	capacityCalculation?: CapacityCalculation | null;
 	points: ProjectProgressPoint[];
 }
 
@@ -225,7 +226,7 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 	}, allTasks, skippedStatuses);
 	if (progress && settings.estimateCapacityFromVelocity) {
 		// Capacity is based on vault-wide completed work before this reporting window, not the project's own planned scope.
-		progress.estimatedCapacity = estimateProjectCapacity(allTasks, startDate, endDate, {
+		const calculation = calculateProjectCapacity(allTasks, startDate, endDate, {
 			scopeProperty: settings.scopeProperty,
 			taskStartProperty: settings.taskStartProperty,
 			taskScheduledProperty: settings.taskScheduledProperty,
@@ -234,6 +235,8 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 			skippedStatuses,
 			countWeekends: settings.countWeekends,
 		});
+		progress.capacityCalculation = calculation;
+		progress.estimatedCapacity = calculation?.capacity ?? null;
 	}
 	return progress;
 }

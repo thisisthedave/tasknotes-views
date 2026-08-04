@@ -5,6 +5,7 @@ import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { CycleProgressChart, formatScopeValue } from './CycleProgressChart';
 
 export const CYCLE_PROGRESS_CLASS = 'tasknotes-views-cycle-progress';
+let capacityTooltipSequence = 0;
 
 /** Adds one Linear-style metric to the chart summary. */
 function renderMetric(container: HTMLElement, label: string, value: number, total: number, modifier: string, isDuration: boolean, showPercent: boolean, plugin: TaskNotesViewsPlugin): void {
@@ -20,10 +21,33 @@ function renderScopeMetric(container: HTMLElement, progress: ProjectProgress, pl
 	const estimatedCapacity = progress.estimatedCapacity;
 	const capacityAvailable = typeof estimatedCapacity === 'number';
 	const metric = container.createDiv({ cls: 'tasknotes-views-cycle-progress__metric is-scope' });
-	metric.createDiv({
+	const label = metric.createDiv({
 		cls: 'tasknotes-views-cycle-progress__metric-label',
 		text: plugin.i18n.translate(capacityAvailable ? 'progress.metrics.scopeCapacity' : 'progress.metrics.scope'),
 	});
+	const calculation = progress.capacityCalculation;
+	if (capacityAvailable && calculation) {
+		// The heading is the least intrusive place to expose how historical velocity was scaled into capacity.
+		const summary = plugin.i18n.translate('progress.capacityCalculation', {
+			completionCount: calculation.completionCount,
+			historyStart: calculation.historyStart,
+			historyEnd: calculation.historyEnd,
+			weeklyVelocity: formatScopeValue(calculation.weeklyVelocity, progress.scopeIsDuration, plugin.i18n),
+			projectDays: calculation.projectDays,
+			daysPerWeek: calculation.daysPerWeek,
+			capacity: formatScopeValue(calculation.capacity, progress.scopeIsDuration, plugin.i18n),
+		});
+		const tooltipId = `tasknotes-views-capacity-tooltip-${capacityTooltipSequence += 1}`;
+		label.addClass('has-capacity-tooltip');
+		label.setAttribute('tabindex', '0');
+		label.setAttribute('aria-describedby', tooltipId);
+		label.setAttribute('title', summary);
+		metric.createDiv({
+			cls: 'tasknotes-views-cycle-progress__capacity-tooltip',
+			attr: { id: tooltipId, role: 'tooltip' },
+			text: summary,
+		});
+	}
 	const valueElement = metric.createDiv({ cls: 'tasknotes-views-cycle-progress__metric-value' });
 	const scope = formatScopeValue(progress.scope, progress.scopeIsDuration, plugin.i18n);
 	if (!capacityAvailable) {
