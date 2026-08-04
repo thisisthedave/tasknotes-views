@@ -1,5 +1,6 @@
 import { MarkdownRenderChild, MarkdownView } from 'obsidian';
 import type TaskNotesViewsPlugin from '../main';
+import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { CYCLE_PROGRESS_CLASS, createCycleProgressWidget } from './CycleProgressWidget';
 
@@ -34,5 +35,29 @@ export function registerCycleProgressReadingView(plugin: TaskNotesViewsPlugin): 
 		if (metadata) metadata.after(widget.element);
 		else sizer.prepend(widget.element);
 		context.addChild(new CycleProgressRenderChild(widget.element, () => widget.dispose()));
+	});
+
+	const api = getTaskNotesApi(plugin.app);
+	let detectionTimer: number | null = null;
+	/** Re-runs reading-mode post-processors when a task assignment makes an open note a project. */
+	const scheduleProjectDetection = (): void => {
+		if (detectionTimer !== null) window.clearTimeout(detectionTimer);
+		detectionTimer = window.setTimeout(() => {
+			detectionTimer = null;
+			for (const leaf of plugin.app.workspace.getLeavesOfType('markdown')) {
+				const view = leaf.view;
+				if (!(view instanceof MarkdownView) || !view.file || !isTaskNotesProject(plugin.app, view.file)) continue;
+				const sizer = view.previewMode.containerEl.querySelector<HTMLElement>('.markdown-preview-sizer');
+				if (sizer && !sizer.querySelector(`.${CYCLE_PROGRESS_CLASS}`)) view.previewMode.rerender(true);
+			}
+		}, 100);
+	};
+	const eventRefs = api?.events ? [
+		api.events.on('task.updated', scheduleProjectDetection),
+		api.events.on('settings.changed', scheduleProjectDetection),
+	] : [];
+	plugin.register(() => {
+		if (detectionTimer !== null) window.clearTimeout(detectionTimer);
+		for (const ref of eventRefs) api?.events?.off(ref);
 	});
 }
