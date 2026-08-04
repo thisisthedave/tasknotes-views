@@ -30,4 +30,11 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: ['src/settings.ts'],
+		rules: {
+			// This fallback is required by Obsidian runtimes that still invoke display() despite exposing definitions.
+			'obsidianmd/settings-tab/no-deprecated-display': 'off',
+		},
+	},
 );

@@ -1,6 +1,7 @@
 import { Extension } from '@codemirror/state';
 import { EditorView, PluginValue, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { editorInfoField, Plugin, TFile } from 'obsidian';
+import { editorInfoField, TFile } from 'obsidian';
+import type TaskNotesViewsPlugin from '../main';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { CYCLE_PROGRESS_CLASS, createCycleProgressWidget } from './CycleProgressWidget';
 
@@ -9,7 +10,7 @@ class CycleProgressEditorPlugin implements PluginValue {
 	private file: TFile | null = null;
 	private widget: ReturnType<typeof createCycleProgressWidget> | null = null;
 
-	constructor(private view: EditorView, private readonly plugin: Plugin) {
+	constructor(private view: EditorView, private readonly plugin: TaskNotesViewsPlugin) {
 		this.refresh();
 	}
 
@@ -38,7 +39,7 @@ class CycleProgressEditorPlugin implements PluginValue {
 		if (!this.file || !isTaskNotesProject(this.plugin.app, this.file)) return;
 		const sizer = this.view.dom.closest('.markdown-source-view')?.querySelector<HTMLElement>('.cm-sizer');
 		if (!sizer || sizer.querySelector(`.${CYCLE_PROGRESS_CLASS}`)) return;
-		this.widget = createCycleProgressWidget(this.plugin.app, this.file, sizer.ownerDocument);
+		this.widget = createCycleProgressWidget(this.plugin, this.file, sizer.ownerDocument);
 		const metadata = sizer.querySelector('.metadata-container');
 		if (metadata) metadata.after(this.widget.element);
 		else sizer.prepend(this.widget.element);
@@ -53,6 +54,6 @@ class CycleProgressEditorPlugin implements PluginValue {
 }
 
 /** Creates the CodeMirror extension used for live-preview project notes. */
-export function createCycleProgressExtension(plugin: Plugin): Extension {
+export function createCycleProgressExtension(plugin: TaskNotesViewsPlugin): Extension {
 	return ViewPlugin.define((view) => new CycleProgressEditorPlugin(view, plugin));
 }

@@ -1,4 +1,5 @@
-import { MarkdownRenderChild, MarkdownView, Plugin } from 'obsidian';
+import { MarkdownRenderChild, MarkdownView } from 'obsidian';
+import type TaskNotesViewsPlugin from '../main';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { CYCLE_PROGRESS_CLASS, createCycleProgressWidget } from './CycleProgressWidget';
 
@@ -16,7 +17,7 @@ class CycleProgressRenderChild extends MarkdownRenderChild {
 }
 
 /** Registers reading-mode rendering and cleanup for TaskNotes project notes. */
-export function registerCycleProgressReadingView(plugin: Plugin): void {
+export function registerCycleProgressReadingView(plugin: TaskNotesViewsPlugin): void {
 	plugin.registerMarkdownPostProcessor((_element, context) => {
 		const leaf = plugin.app.workspace.getLeavesOfType('markdown').find((candidate) => {
 			const candidateView = candidate.view;
@@ -28,7 +29,7 @@ export function registerCycleProgressReadingView(plugin: Plugin): void {
 		if (!sizer || sizer.querySelector(`.${CYCLE_PROGRESS_CLASS}`)) return;
 
 		// Reading mode can process many sections, so the class guard makes the note-level injection idempotent.
-		const widget = createCycleProgressWidget(plugin.app, view.file, sizer.ownerDocument);
+		const widget = createCycleProgressWidget(plugin, view.file, sizer.ownerDocument);
 		const metadata = sizer.querySelector('.metadata-container');
 		if (metadata) metadata.after(widget.element);
 		else sizer.prepend(widget.element);

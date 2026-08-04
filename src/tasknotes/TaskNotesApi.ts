@@ -6,11 +6,14 @@ export interface TaskNotesStatus {
 }
 
 export interface TaskNotesTask {
+	[key: string]: unknown;
 	path: string;
 	status: string;
 	scheduled?: string;
 	completedDate?: string;
 	timeEstimate?: number;
+	due?: string;
+	customProperties?: Record<string, unknown>;
 }
 
 interface TaskNotesApiShape {

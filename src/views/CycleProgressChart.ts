@@ -25,11 +25,19 @@ export class CycleProgressChart {
 	}
 }
 
+/** Formats scope either as a compact duration or as a unitless number. */
+export function formatScopeValue(value: number, isDuration: boolean): string {
+	if (!isDuration) return Number.isInteger(value) ? String(value) : value.toFixed(1);
+	if (value < 60) return `${value}m`;
+	const hours = value / 60;
+	return Number.isInteger(hours) ? `${hours}h` : `${hours.toFixed(1)}h`;
+}
+
 /** Builds the Linear-inspired scope, started, completed, and ideal series. */
 export function createCycleProgressOption(progress: ProjectProgress): EChartsCoreOption {
 	return {
 		animationDuration: 450,
-		tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => `${Math.round(Number(value))} min` },
+		tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => formatScopeValue(Number(value), progress.scopeIsDuration) },
 		grid: { left: 48, right: 16, top: 18, bottom: 36 },
 		xAxis: {
 			type: 'category',
@@ -37,7 +45,7 @@ export function createCycleProgressOption(progress: ProjectProgress): EChartsCor
 			data: progress.points.map((point) => point.date),
 			axisLabel: { formatter: (value: string) => new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }) },
 		},
-		yAxis: { type: 'value', min: 0, name: 'Minutes' },
+		yAxis: { type: 'value', min: 0, name: progress.scopeIsDuration ? 'Minutes' : 'Scope' },
 		series: [
 			{ name: 'Scope', type: 'line', symbol: 'none', lineStyle: { color: '#737373', width: 2 }, data: progress.points.map((point) => point.scope) },
 			{ name: 'Ideal burndown', type: 'line', symbol: 'none', lineStyle: { color: '#8b8bff', type: 'dotted', width: 2 }, data: progress.points.map((point) => point.ideal) },
