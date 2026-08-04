@@ -1,92 +1,122 @@
-# Obsidian Sample Plugin
+# TaskNotes Views
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+TaskNotes Views adds Project management progress charts to [TaskNotes](https://github.com/callumalpass/tasknotes) project notes in Obsidian.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+![TaskNotes project progress chart](docs/images/project-progress.png)
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+## Features
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+- Automatically embeds a progress widget in TaskNotes project notes in both reading view and Live Preview.
+- Supports duration estimates such as `timeEstimate` and unitless estimates such as story points.
+- Shows cumulative scope, scheduled, started, completed, and ideal target progress.
+- Pauses ideal progress on weekends by default, with an option to count weekends.
+- Shows scheduled, started, and completed task names in the hover popup, including each task's scope.
+- Optionally estimates project capacity from recent historical velocity.
+- Estimates virtual and materialized recurring TaskNotes occurrences.
 
-## First time developing plugins?
+## Requirements
 
-Quick starting guide for new plugin devs:
+- Obsidian 1.13 or newer.
+- The TaskNotes plugin, with its version 1 public API available.
+- Notes recognized as projects by TaskNotes. TaskNotes Views uses TaskNotes' project relationship index when available and falls back to its configured project tag or property markers.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## How project progress is calculated
 
-## Releasing new releases
+The reporting time span comes from the configured project start and end frontmatter properties (defaults `scheduled` and `due`):
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
+```yaml
+---
+scheduled: 2026-07-27
+due: 2026-08-09
+---
 ```
 
-If you have multiple URLs, you can also do:
+When **Derive date range from tasks** is enabled, a missing start falls back to the earliest configured scheduled or started date among project tasks, and a missing end falls back to the latest task due date.
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
+### Chart values
+
+- **Scope** is the sum of the estimated work for every included work item in the project.
+- **Scheduled** accumulates scope on each task's configured scheduled date.
+- **Started** accumulates scope based on a configurable start date property. (Use the "Stamp started timestamp" workflow from the [TaskNotes Workflows](https://github.com/callumalpass/tasknotes-workflows) plugin to automatically set a start date when a task is set to in-progress.)
+- **Completed** accumulates scope on the task's completion date.
+- **Target** distributes total scope evenly across the reporting window. By default it advances on weekdays and remains flat on weekends.
+
+TaskNotes statuses configured as skipped are excluded from scope, scheduled, started, and completed values.
+
+The hover popup omits Scope and Target because they do not represent task events on a particular day. Scheduled, Started, and Completed entries include matching task names with scope prefixes, such as `[45m] Polish the silverware` or `[2] Brew moonlight espresso`.
+
+## Recurring tasks
+
+Each recurrence is treated as a logical work item:
+
+- Virtual recurring parents are projected into the reporting window from their recurrence rule.
+- `complete_instances` and `skipped_instances` provide completion and skip history for non-materialized occurrences.
+- A completed virtual occurrence uses the recurring template's estimate.
+- A matching materialized occurrence overrides the projection with its own project assignment, estimate, status, scheduled date, started date, and completion state.
+- A materialized occurrence moved to another project is excluded from the original project's calculations.
+- The parent template is not counted as an additional unit of scope.
+- Materialized completions are not counted again from the parent's compatibility history.
+
+Virtual occurrences cannot expose an independent started date. They remain unstarted until completed. Materialized occurrences can contribute started work through their configured started property.
+
+## Capacity estimation
+
+Enable **Estimate capacity from past velocity** to compare planned scope with an estimated capacity. Estimated capacity appears in the **Scope** heading for the progress graph, for example:
+
+```text
+Scope / Capacity
+9 / 10 (90%)
 ```
 
-## API Documentation
+Capacity is calculated from completed task scope during the six weeks before the project starts:
 
-See https://docs.obsidian.md
+1. Completed work is grouped into six weekly buckets.
+2. The oldest through newest buckets receive linear weights from 1 through 6.
+3. Project capacity is computed from the weighted weekly velocity scaled to the number of working days in the project date range.
+
+An estimate requires at least three completed scoped work items spanning at least three weeks. If history is insufficient, the widget retains the normal **Scope** metric and displays a notice that not enough historical data exists to estimate capacity.
+
+## Settings
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| Project start property | `scheduled` | Project frontmatter property containing the reporting start date. |
+| Project end property | `due` | Project frontmatter property containing the reporting end date. |
+| Derive date range from tasks | Off | Fills missing project boundaries from task dates. |
+| Scope property | `timeEstimate` | Task property containing duration, points, or another numeric scope value. |
+| Scope is a duration | On | Formats scope as minutes and hours instead of a unitless number. |
+| Estimate capacity from past velocity | Off | Compares planned scope with recency-weighted historical capacity. |
+| Task started property | `startedAt` | Task property recording when work actually began. |
+| Task scheduled property | `scheduled` | Task property recording when work is planned to begin. |
+| In-progress statuses | `in-progress` | Comma-separated status values that count as started. TaskNotes-completed statuses are always included. |
+| Count weekends | Off | Allows ideal target progress and capacity scaling to count Saturdays and Sundays. |
+
+## Installation
+
+Install from the Obsidian community plugin catalog and enable **TaskNotes Views** under **Settings → Community plugins**.
+
+## Development
+
+Install dependencies and start the watch build:
+
+```bash
+npm install
+npm run dev
+```
+
+Available validation and packaging commands:
+
+```bash
+npm run typecheck
+npm test
+npm run lint
+npm run build
+npm run copy-files
+npm run build:test
+```
+
+`npm run copy-files` copies `main.js`, `manifest.json`, and `styles.css` to destinations listed in `.copy-files.local`, the `OBSIDIAN_PLUGIN_PATH` environment variable, or the default TaskNotes end-to-end test vault.
+
+## License
+
+[MIT](LICENSE)

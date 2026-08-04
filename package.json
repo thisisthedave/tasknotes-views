@@ -15,7 +15,7 @@
 		"lint": "eslint ."
 	},
 	"keywords": [],
-	"license": "0-BSD",
+	"license": "MIT",
 	"devDependencies": {
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.38.6",
