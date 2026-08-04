@@ -3,6 +3,7 @@ import { createI18nService } from './i18n';
 import { DEFAULT_SETTINGS, TaskNotesViewsSettings, TaskNotesViewsSettingTab } from './settings';
 import { createCycleProgressExtension } from './views/CycleProgressEditor';
 import { registerCycleProgressReadingView } from './views/CycleProgressReading';
+import { registerCycleCommands } from './cycles/CycleCommands';
 
 /** Registers TaskNotes project progress views and owns settings and lifecycle events. */
 export default class TaskNotesViewsPlugin extends Plugin {
@@ -15,6 +16,7 @@ export default class TaskNotesViewsPlugin extends Plugin {
 		this.addSettingTab(new TaskNotesViewsSettingTab(this.app, this));
 		this.registerEditorExtension(createCycleProgressExtension(this));
 		registerCycleProgressReadingView(this);
+		registerCycleCommands(this);
 	}
 
 	/** Loads persisted values over safe defaults. */

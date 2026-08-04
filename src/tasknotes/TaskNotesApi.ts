@@ -6,6 +6,10 @@ export interface TaskNotesStatus {
 	isSkipped?: boolean;
 }
 
+export interface TaskNotesSettingsSnapshot {
+	tasksFolder?: string;
+}
+
 export interface TaskNotesTask {
 	[key: string]: unknown;
 	path: string;
@@ -32,10 +36,14 @@ interface TaskNotesApiShape {
 	query: {
 		tasks(query: {
 			where: { field: 'task.projects'; op: 'contains'; value: string };
-			scope: { includeArchived: false };
+			scope?: { includeArchived: boolean };
 		}): Promise<{ tasks: TaskNotesTask[] }>;
 	};
-	tasks: { list(): Promise<TaskNotesTask[]> };
+	tasks: {
+		list(): Promise<TaskNotesTask[]>;
+		update(path: string, patch: Partial<TaskNotesTask>): Promise<TaskNotesTask>;
+	};
+	settings?: { snapshot(): TaskNotesSettingsSnapshot };
 	events?: {
 		on(event: 'task.updated' | 'settings.changed', handler: () => void): EventRef;
 		off(ref: EventRef): void;
@@ -54,4 +62,10 @@ export function getTaskNotesApi(app: App): TaskNotesApiShape | null {
 	const api = (plugin as TaskNotesPluginShape).api;
 	if (!api || api.apiVersion !== 1 || !api.hasCapability('query.tasks') || !api.hasCapability('tasks.read') || !api.hasCapability('catalog.read')) return null;
 	return api;
+}
+
+/** Resolves TaskNotes API v1 with task-write support for cycle rollover operations. */
+export function getWritableTaskNotesApi(app: App): TaskNotesApiShape | null {
+	const api = getTaskNotesApi(app);
+	return api?.hasCapability('tasks.write') ? api : null;
 }

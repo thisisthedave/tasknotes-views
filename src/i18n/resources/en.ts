@@ -41,6 +41,33 @@ export const en = {
 			name: 'Count weekends',
 			description: 'Target completion expects task progress on Saturday and Sunday.',
 		},
+		cycles: {
+			heading: 'Cycles',
+			nameFormat: {
+				name: 'Cycle name format',
+				description: 'Moment date format for cycle paths. Use {cycle} for the annual counter, for example YYYY/YYYY-[Cycle]-{cycle}.',
+			},
+			template: {
+				name: 'Cycle project template',
+				description: 'Template note processed by Templater when it is installed. Otherwise a blank cycle note is created.',
+			},
+			folder: {
+				name: 'Cycle project folder',
+				description: 'Root folder for cycle projects. Leave empty to inherit TaskNotes’ default tasks folder.',
+			},
+			startDay: {
+				name: 'Cycle start day',
+				description: 'Weekday on which scheduled cycles begin, or the current day for an ad hoc cadence.',
+			},
+			duration: {
+				name: 'Cycle duration',
+				description: 'Number of weeks in each cycle.',
+			},
+			rollover: {
+				name: 'Cycle task rollover',
+				description: 'Automatically move eligible incomplete tasks when creating the next cycle.',
+			},
+		},
 	},
 	progress: {
 		title: '{projectName} Progress',

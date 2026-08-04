@@ -12,7 +12,15 @@ export interface TaskNotesViewsSettings {
 	scopeIsDuration: boolean;
 	estimateCapacityFromVelocity: boolean;
 	countWeekends: boolean;
+	cycleNameFormat: string;
+	cycleProjectTemplate: string;
+	cycleProjectFolder: string;
+	cycleStartDay: CycleStartDay;
+	cycleDurationWeeks: number;
+	cycleTaskRollover: boolean;
 }
+
+export type CycleStartDay = 'current' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	projectStartProperty: 'scheduled',
@@ -25,6 +33,12 @@ export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	scopeIsDuration: true,
 	estimateCapacityFromVelocity: false,
 	countWeekends: false,
+	cycleNameFormat: 'YYYY/YYYY-[Cycle]-{cycle}',
+	cycleProjectTemplate: '',
+	cycleProjectFolder: '',
+	cycleStartDay: 'monday',
+	cycleDurationWeeks: 2,
+	cycleTaskRollover: false,
 };
 
 type SettingsKey = keyof TaskNotesViewsSettings;
@@ -93,6 +107,41 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					control: { type: 'toggle', key: 'countWeekends', defaultValue: DEFAULT_SETTINGS.countWeekends },
 				},
 			],
+		}, {
+			type: 'group',
+			heading: t('settings.cycles.heading'),
+			items: [
+				{
+					name: t('settings.cycles.nameFormat.name'),
+					desc: t('settings.cycles.nameFormat.description'),
+					control: { type: 'text', key: 'cycleNameFormat', defaultValue: DEFAULT_SETTINGS.cycleNameFormat, placeholder: DEFAULT_SETTINGS.cycleNameFormat },
+				},
+				{
+					name: t('settings.cycles.template.name'),
+					desc: t('settings.cycles.template.description'),
+					control: { type: 'file', key: 'cycleProjectTemplate', defaultValue: DEFAULT_SETTINGS.cycleProjectTemplate, placeholder: 'Templates/Cycle.md', filter: (file) => file.extension === 'md' },
+				},
+				{
+					name: t('settings.cycles.folder.name'),
+					desc: t('settings.cycles.folder.description'),
+					control: { type: 'folder', key: 'cycleProjectFolder', defaultValue: DEFAULT_SETTINGS.cycleProjectFolder, placeholder: 'Projects/Cycles', includeRoot: true },
+				},
+				{
+					name: t('settings.cycles.startDay.name'),
+					desc: t('settings.cycles.startDay.description'),
+					control: { type: 'dropdown', key: 'cycleStartDay', defaultValue: DEFAULT_SETTINGS.cycleStartDay, options: getCycleStartDayOptions() },
+				},
+				{
+					name: t('settings.cycles.duration.name'),
+					desc: t('settings.cycles.duration.description'),
+					control: { type: 'number', key: 'cycleDurationWeeks', defaultValue: DEFAULT_SETTINGS.cycleDurationWeeks, min: 1, max: 52, step: 1 },
+				},
+				{
+					name: t('settings.cycles.rollover.name'),
+					desc: t('settings.cycles.rollover.description'),
+					control: { type: 'toggle', key: 'cycleTaskRollover', defaultValue: DEFAULT_SETTINGS.cycleTaskRollover },
+				},
+			],
 		}];
 	}
 
@@ -112,10 +161,36 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 		this.addTextSetting(t('settings.taskScheduledProperty.name'), t('settings.taskScheduledProperty.description'), 'taskScheduledProperty', 'scheduled');
 		this.addTextSetting(t('settings.inProgressStatuses.name'), t('settings.inProgressStatuses.description'), 'inProgressStatuses', 'in-progress');
 		this.addToggleSetting(t('settings.countWeekends.name'), t('settings.countWeekends.description'), 'countWeekends');
+		new Setting(container).setName(t('settings.cycles.heading')).setHeading();
+		this.addTextSetting(t('settings.cycles.nameFormat.name'), t('settings.cycles.nameFormat.description'), 'cycleNameFormat', DEFAULT_SETTINGS.cycleNameFormat);
+		this.addTextSetting(t('settings.cycles.template.name'), t('settings.cycles.template.description'), 'cycleProjectTemplate', 'Templates/Cycle.md');
+		this.addTextSetting(t('settings.cycles.folder.name'), t('settings.cycles.folder.description'), 'cycleProjectFolder', 'Projects/Cycles');
+		new Setting(container)
+			.setName(t('settings.cycles.startDay.name'))
+			.setDesc(t('settings.cycles.startDay.description'))
+			.addDropdown((dropdown) => dropdown
+				.addOptions(getCycleStartDayOptions())
+				.setValue(this.taskNotesViewsPlugin.settings.cycleStartDay)
+				.onChange(async (value) => {
+					this.taskNotesViewsPlugin.settings.cycleStartDay = value as CycleStartDay;
+					await this.taskNotesViewsPlugin.saveSettings();
+				}));
+		new Setting(container)
+			.setName(t('settings.cycles.duration.name'))
+			.setDesc(t('settings.cycles.duration.description'))
+			.addText((text) => text
+				.setValue(String(this.taskNotesViewsPlugin.settings.cycleDurationWeeks))
+				.onChange(async (value) => {
+					const weeks = Number.parseInt(value, 10);
+					if (!Number.isFinite(weeks) || weeks < 1) return;
+					this.taskNotesViewsPlugin.settings.cycleDurationWeeks = weeks;
+					await this.taskNotesViewsPlugin.saveSettings();
+				}));
+		this.addToggleSetting(t('settings.cycles.rollover.name'), t('settings.cycles.rollover.description'), 'cycleTaskRollover');
 	}
 
 	/** Adds a persisted text control to the legacy settings renderer. */
-	private addTextSetting(name: string, description: string, key: 'projectStartProperty' | 'projectEndProperty' | 'scopeProperty' | 'taskStartProperty' | 'taskScheduledProperty' | 'inProgressStatuses', placeholder: string): void {
+	private addTextSetting(name: string, description: string, key: 'projectStartProperty' | 'projectEndProperty' | 'scopeProperty' | 'taskStartProperty' | 'taskScheduledProperty' | 'inProgressStatuses' | 'cycleNameFormat' | 'cycleProjectTemplate' | 'cycleProjectFolder', placeholder: string): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)
@@ -129,7 +204,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 	}
 
 	/** Adds a persisted toggle control to the legacy settings renderer. */
-	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends'): void {
+	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover'): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)
@@ -155,4 +230,18 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 		this.taskNotesViewsPlugin.settings = { ...this.taskNotesViewsPlugin.settings, [settingKey]: value };
 		await this.taskNotesViewsPlugin.saveSettings();
 	}
+}
+
+/** Returns stable stored weekday identifiers with sentence-case labels for cycle scheduling. */
+function getCycleStartDayOptions(): Record<CycleStartDay, string> {
+	return {
+		current: 'Current day',
+		monday: 'Monday',
+		tuesday: 'Tuesday',
+		wednesday: 'Wednesday',
+		thursday: 'Thursday',
+		friday: 'Friday',
+		saturday: 'Saturday',
+		sunday: 'Sunday',
+	};
 }

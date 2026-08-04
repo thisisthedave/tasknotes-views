@@ -39,4 +39,19 @@ export default defineConfig(
 			'obsidianmd/settings-tab/no-deprecated-display': 'off',
 		},
 	},
+	{
+		files: ['tests/obsidian.mock.ts'],
+		rules: {
+			// The runtime-only Obsidian package needs Moment supplied by the test harness.
+			'@typescript-eslint/no-restricted-imports': 'off',
+			'import/no-extraneous-dependencies': 'off',
+		},
+	},
+	{
+		files: ['vitest.config.ts'],
+		rules: {
+			// Vitest configuration executes under Node and is excluded from the mobile plugin bundle.
+			'obsidianmd/no-nodejs-modules': 'off',
+		},
+	},
 );
