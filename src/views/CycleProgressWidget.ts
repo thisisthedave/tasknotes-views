@@ -23,6 +23,7 @@ function renderProgress(element: HTMLElement, progress: ProjectProgress, plugin:
 	heading.createSpan({ text: plugin.i18n.translate('progress.dateRange', { startDate: progress.startDate, endDate: progress.endDate }) });
 	const metrics = element.createDiv({ cls: 'tasknotes-views-cycle-progress__metrics' });
 	renderMetric(metrics, plugin.i18n.translate('progress.metrics.scope'), progress.scope, progress.scope, 'scope', progress.scopeIsDuration, false, plugin);
+	renderMetric(metrics, plugin.i18n.translate('progress.metrics.scheduled'), progress.scheduled, progress.scope, 'scheduled', progress.scopeIsDuration, true, plugin);
 	renderMetric(metrics, plugin.i18n.translate('progress.metrics.started'), progress.started, progress.scope, 'started', progress.scopeIsDuration, true, plugin);
 	renderMetric(metrics, plugin.i18n.translate('progress.metrics.completed'), progress.completed, progress.scope, 'completed', progress.scopeIsDuration, true, plugin);
 	const chartElement = element.createDiv({ cls: 'tasknotes-views-cycle-progress__chart' });

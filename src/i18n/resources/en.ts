@@ -25,6 +25,10 @@ export const en = {
 			name: 'Task started property',
 			description: 'Task date property recording when progress began. Falls back to scheduled, completedDate, then the project start.',
 		},
+		taskScheduledProperty: {
+			name: 'Task scheduled property',
+			description: 'Task date property recording when work is planned to start.',
+		},
 		inProgressStatuses: {
 			name: 'In-progress statuses',
 			description: 'Comma-separated status values that count toward started scope. Completed statuses are always included.',
@@ -42,6 +46,7 @@ export const en = {
 		loadError: 'Could not load project progress.',
 		metrics: {
 			scope: 'Scope',
+			scheduled: 'Scheduled',
 			started: 'Started',
 			completed: 'Completed',
 		},
@@ -49,9 +54,10 @@ export const en = {
 			minutesAxis: 'Minutes',
 			scopeAxis: 'Scope',
 			scopeSeries: 'Scope',
-			idealSeries: 'Ideal burndown',
 			startedSeries: 'Started',
 			completedSeries: 'Completed',
+			targetSeries: 'Target',
+			scheduledSeries: 'Scheduled',
 		},
 		units: {
 			minutes: '{value}m',

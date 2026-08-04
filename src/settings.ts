@@ -7,6 +7,7 @@ export interface TaskNotesViewsSettings {
 	deriveDateRangeFromTasks: boolean;
 	scopeProperty: string;
 	taskStartProperty: string;
+	taskScheduledProperty: string;
 	inProgressStatuses: string;
 	scopeIsDuration: boolean;
 	countWeekends: boolean;
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	deriveDateRangeFromTasks: false,
 	scopeProperty: 'timeEstimate',
 	taskStartProperty: 'startedAt',
+	taskScheduledProperty: 'scheduled',
 	inProgressStatuses: 'in-progress',
 	scopeIsDuration: true,
 	countWeekends: false,
@@ -69,6 +71,11 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					control: { type: 'text', key: 'taskStartProperty', defaultValue: DEFAULT_SETTINGS.taskStartProperty, placeholder: 'startedAt' },
 				},
 				{
+					name: t('settings.taskScheduledProperty.name'),
+					desc: t('settings.taskScheduledProperty.description'),
+					control: { type: 'text', key: 'taskScheduledProperty', defaultValue: DEFAULT_SETTINGS.taskScheduledProperty, placeholder: 'scheduled' },
+				},
+				{
 					name: t('settings.inProgressStatuses.name'),
 					desc: t('settings.inProgressStatuses.description'),
 					control: { type: 'text', key: 'inProgressStatuses', defaultValue: DEFAULT_SETTINGS.inProgressStatuses, placeholder: 'in-progress' },
@@ -94,12 +101,13 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 		this.addTextSetting(t('settings.scopeProperty.name'), t('settings.scopeProperty.description'), 'scopeProperty', 'timeEstimate');
 		this.addToggleSetting(t('settings.scopeIsDuration.name'), t('settings.scopeIsDuration.description'), 'scopeIsDuration');
 		this.addTextSetting(t('settings.taskStartProperty.name'), t('settings.taskStartProperty.description'), 'taskStartProperty', 'startedAt');
+		this.addTextSetting(t('settings.taskScheduledProperty.name'), t('settings.taskScheduledProperty.description'), 'taskScheduledProperty', 'scheduled');
 		this.addTextSetting(t('settings.inProgressStatuses.name'), t('settings.inProgressStatuses.description'), 'inProgressStatuses', 'in-progress');
 		this.addToggleSetting(t('settings.countWeekends.name'), t('settings.countWeekends.description'), 'countWeekends');
 	}
 
 	/** Adds a persisted text control to the legacy settings renderer. */
-	private addTextSetting(name: string, description: string, key: 'projectStartProperty' | 'projectEndProperty' | 'scopeProperty' | 'taskStartProperty' | 'inProgressStatuses', placeholder: string): void {
+	private addTextSetting(name: string, description: string, key: 'projectStartProperty' | 'projectEndProperty' | 'scopeProperty' | 'taskStartProperty' | 'taskScheduledProperty' | 'inProgressStatuses', placeholder: string): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)

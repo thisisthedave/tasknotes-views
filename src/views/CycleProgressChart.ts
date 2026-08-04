@@ -7,6 +7,19 @@ import { ProjectProgress } from '../progress/ProjectProgress';
 
 use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
+const SERIES_COLORS = {
+	scope: '#22b8cf',
+	target: '#a3a3a3',
+	scheduled: '#737373',
+	started: '#f2c200',
+	completed: '#6c6cff',
+} as const;
+
+/** Truncates a numeric display value to at most one decimal place. */
+function truncateOneDecimal(value: number): number {
+	return Math.trunc(value * 10) / 10;
+}
+
 /** Owns an ECharts project-progress graph and releases canvas resources on disposal. */
 export class CycleProgressChart {
 	private readonly chart: ECharts;
@@ -28,10 +41,10 @@ export class CycleProgressChart {
 
 /** Formats scope either as a compact duration or as a unitless number. */
 export function formatScopeValue(value: number, isDuration: boolean, i18n: I18nService): string {
-	if (!isDuration) return Number.isInteger(value) ? String(value) : value.toFixed(1);
-	if (value < 60) return i18n.translate('progress.units.minutes', { value });
+	if (!isDuration) return String(truncateOneDecimal(value));
+	if (value < 60) return i18n.translate('progress.units.minutes', { value: truncateOneDecimal(value) });
 	const hours = value / 60;
-	return i18n.translate('progress.units.hours', { value: Number.isInteger(hours) ? hours : hours.toFixed(1) });
+	return i18n.translate('progress.units.hours', { value: truncateOneDecimal(hours) });
 }
 
 /** Builds the Linear-inspired scope, started, completed, and ideal series. */
@@ -48,10 +61,11 @@ export function createCycleProgressOption(progress: ProjectProgress, i18n: I18nS
 		},
 		yAxis: { type: 'value', min: 0, name: i18n.translate(progress.scopeIsDuration ? 'progress.chart.minutesAxis' : 'progress.chart.scopeAxis') },
 		series: [
-			{ name: i18n.translate('progress.chart.scopeSeries'), type: 'line', symbol: 'none', lineStyle: { color: '#737373', width: 2 }, data: progress.points.map((point) => point.scope) },
-			{ name: i18n.translate('progress.chart.idealSeries'), type: 'line', symbol: 'none', lineStyle: { color: '#8b8bff', type: 'dotted', width: 2 }, data: progress.points.map((point) => point.ideal) },
-			{ name: i18n.translate('progress.chart.startedSeries'), type: 'line', symbol: 'none', lineStyle: { color: '#f2c200', width: 2 }, areaStyle: { color: 'rgba(242, 194, 0, 0.12)' }, data: progress.points.map((point) => point.started) },
-			{ name: i18n.translate('progress.chart.completedSeries'), type: 'line', symbol: 'none', lineStyle: { color: '#6c6cff', width: 2 }, data: progress.points.map((point) => point.completed) },
+			{ name: i18n.translate('progress.chart.scopeSeries'), type: 'line', symbol: 'none', itemStyle: { color: SERIES_COLORS.scope }, lineStyle: { color: SERIES_COLORS.scope, width: 2 }, data: progress.points.map((point) => point.scope) },
+			{ name: i18n.translate('progress.chart.targetSeries'), type: 'line', symbol: 'none', itemStyle: { color: SERIES_COLORS.target }, lineStyle: { color: SERIES_COLORS.target, type: 'dotted', width: 2 }, data: progress.points.map((point) => point.target) },
+			{ name: i18n.translate('progress.chart.scheduledSeries'), type: 'line', symbol: 'none', itemStyle: { color: SERIES_COLORS.scheduled }, lineStyle: { color: SERIES_COLORS.scheduled, type: 'dotted', width: 1 }, data: progress.points.map((point) => point.scheduled) },
+			{ name: i18n.translate('progress.chart.startedSeries'), type: 'line', symbol: 'none', itemStyle: { color: SERIES_COLORS.started }, lineStyle: { color: SERIES_COLORS.started, width: 2 }, areaStyle: { color: 'rgba(242, 194, 0, 0.12)' }, data: progress.points.map((point) => point.started) },
+			{ name: i18n.translate('progress.chart.completedSeries'), type: 'line', symbol: 'none', itemStyle: { color: SERIES_COLORS.completed }, lineStyle: { color: SERIES_COLORS.completed, width: 2 }, data: progress.points.map((point) => point.completed) },
 		],
 	};
 }

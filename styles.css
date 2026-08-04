@@ -26,7 +26,7 @@
 
 .tasknotes-views-cycle-progress__metrics {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 1rem;
 	margin-top: 1rem;
 }
@@ -43,12 +43,16 @@
 	width: 0.45rem;
 	height: 0.45rem;
 	border-radius: 1px;
-	background: #737373;
+	background: #22b8cf;
 	content: '';
 }
 
 .tasknotes-views-cycle-progress__metric.is-started::before {
 	background: #f2c200;
+}
+
+.tasknotes-views-cycle-progress__metric.is-scheduled::before {
+	background: #737373;
 }
 
 .tasknotes-views-cycle-progress__metric.is-completed::before {
@@ -91,5 +95,6 @@
 
 	.tasknotes-views-cycle-progress__metrics {
 		gap: 0.5rem;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }

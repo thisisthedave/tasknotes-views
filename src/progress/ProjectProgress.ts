@@ -4,8 +4,9 @@ import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 
 export interface ProjectProgressPoint {
 	date: string;
-	ideal: number;
+	target: number;
 	scope: number;
+	scheduled: number;
 	started: number;
 	completed: number;
 }
@@ -15,6 +16,7 @@ export interface ProjectProgress {
 	startDate: string;
 	endDate: string;
 	scope: number;
+	scheduled: number;
 	started: number;
 	completed: number;
 	scopeIsDuration: boolean;
@@ -24,6 +26,7 @@ export interface ProjectProgress {
 export interface ProjectProgressOptions {
 	scopeProperty: string;
 	taskStartProperty: string;
+	taskScheduledProperty: string;
 	inProgressStatuses: string[];
 	scopeIsDuration: boolean;
 	countWeekends: boolean;
@@ -62,21 +65,21 @@ function clampDate(value: string | undefined, start: string, end: string): strin
 	return value > end ? end : value;
 }
 
-/** Calculates the linearly declining ideal work remaining, pausing on weekends. */
-function idealBurndown(dates: Date[], scope: number, countWeekends: boolean): number[] {
+/** Calculates linearly increasing target progress, pausing on weekends. */
+function targetProgress(dates: Date[], scope: number, countWeekends: boolean): number[] {
 	const weekdayIndexes = dates.map((date, index) => countWeekends || isWeekday(date) ? index : -1).filter((index) => index >= 0);
-	if (weekdayIndexes.length === 0) return dates.map(() => scope);
+	if (weekdayIndexes.length === 0) return dates.map(() => 0);
 	if (weekdayIndexes.length === 1) {
 		const onlyWeekday = weekdayIndexes[0] ?? 0;
-		return dates.map((_date, index) => index < onlyWeekday ? scope : 0);
+		return dates.map((_date, index) => index < onlyWeekday ? 0 : scope);
 	}
 	const first = weekdayIndexes[0] ?? 0;
 	const last = weekdayIndexes[weekdayIndexes.length - 1] ?? dates.length - 1;
 	let elapsed = 0;
 	return dates.map((_date, index) => {
-		if (index <= first) return scope;
+		if (index <= first) return 0;
 		if (countWeekends || isWeekday(dates[index] as Date)) elapsed += 1;
-		return index >= last ? 0 : Math.max(0, scope * (1 - elapsed / (weekdayIndexes.length - 1)));
+		return index >= last ? scope : Math.min(scope, scope * elapsed / (weekdayIndexes.length - 1));
 	});
 }
 
@@ -123,11 +126,15 @@ export function buildProjectProgress(
 	const isCompleted = (task: TaskNotesTask) => completedStatuses.has(task.status);
 	const inProgressStatuses = new Set(options.inProgressStatuses);
 	const isStarted = (task: TaskNotesTask) => inProgressStatuses.has(task.status) || isCompleted(task);
-	const ideal = idealBurndown(dates, scope, options.countWeekends);
+	const target = targetProgress(dates, scope, options.countWeekends);
 
 	// Status history is not public, so scheduled/completed dates anchor cumulative state changes on the timeline.
 	const points = dates.map((date, index) => {
 		const current = formatDate(date);
+		const scheduled = estimatedTasks.reduce((sum, entry) => {
+			const scheduledDate = getTaskDate(entry.task, options.taskScheduledProperty);
+			return scheduledDate && clampDate(scheduledDate, startDate, endDate) <= current ? sum + entry.scope : sum;
+		}, 0);
 		const started = estimatedTasks.filter(({ task }) => isStarted(task)).reduce((sum, entry) => {
 			const startedDate = clampDate(getTaskDate(entry.task, options.taskStartProperty) ?? entry.task.scheduled ?? entry.task.completedDate, startDate, endDate);
 			return startedDate <= current ? sum + entry.scope : sum;
@@ -136,9 +143,9 @@ export function buildProjectProgress(
 			const completedDate = clampDate(entry.task.completedDate, startDate, endDate);
 			return completedDate <= current ? sum + entry.scope : sum;
 		}, 0);
-		return { date: current, ideal: ideal[index] ?? 0, scope, started, completed };
+		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed };
 	});
-	return { projectName, startDate, endDate, scope, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, scopeIsDuration: options.scopeIsDuration, points };
+	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, scopeIsDuration: options.scopeIsDuration, points };
 }
 
 /** Loads project dates and matching project tasks through Obsidian and TaskNotes' public query API. */
@@ -168,6 +175,7 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 	return buildProjectProgress(file.basename, startDate, endDate, result.tasks, completedStatuses, {
 		scopeProperty: settings.scopeProperty,
 		taskStartProperty: settings.taskStartProperty,
+		taskScheduledProperty: settings.taskScheduledProperty,
 		inProgressStatuses: settings.inProgressStatuses.split(',').map((status) => status.trim()).filter(Boolean),
 		scopeIsDuration: settings.scopeIsDuration,
 		countWeekends: settings.countWeekends,
