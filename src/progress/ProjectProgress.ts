@@ -107,6 +107,34 @@ function getProjectDate(frontmatter: Record<string, unknown> | undefined, proper
 	return normalizeDate(frontmatter?.[property]) ?? '';
 }
 
+/** Reads a built-in or custom TaskNotes property without giving custom data precedence over API-normalized fields. */
+function getTaskProperty(task: TaskNotesTask, property: string): unknown {
+	return task[property] !== undefined ? task[property] : task.customProperties?.[property];
+}
+
+/** Resolves each project boundary from frontmatter, using task dates only when derivation is enabled and that boundary is absent. */
+export function resolveProjectDateRange(
+	projectStart: string,
+	projectEnd: string,
+	tasks: TaskNotesTask[],
+	deriveDateRangeFromTasks: boolean,
+	taskStartProperty = 'startedAt',
+	taskScheduledProperty = 'scheduled',
+): { startDate: string; endDate: string } {
+	const scheduledDates = tasks.map((task) => normalizeDate(getTaskProperty(task, taskScheduledProperty))).filter((date): date is string => date !== null);
+	const startedDates = tasks.map((task) => normalizeDate(getTaskProperty(task, taskStartProperty))).filter((date): date is string => date !== null);
+	const possibleStartDates = [...scheduledDates, ...startedDates].sort();
+	const dueDates = tasks.map((task) => normalizeDate(task.due)).filter((date): date is string => date !== null).sort();
+
+	// Project properties express an explicit reporting window; derivation only repairs a missing boundary.
+	const derivedStart = deriveDateRangeFromTasks ? possibleStartDates[0] ?? '' : '';
+	const derivedEnd = deriveDateRangeFromTasks ? dueDates.at(-1) ?? '' : '';
+	return {
+		startDate: projectStart || derivedStart,
+		endDate: projectEnd || derivedEnd,
+	};
+}
+
 /** Computes cumulative started and completed estimates for one project date range. */
 export function buildProjectProgress(
 	projectName: string,
@@ -174,10 +202,14 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 	}), api.tasks.list()]);
 	const projectStart = getProjectDate(frontmatter, settings.projectStartProperty);
 	const projectEnd = getProjectDate(frontmatter, settings.projectEndProperty);
-	const scheduledDates = result.tasks.map((task) => normalizeDate(task.scheduled)).filter((date): date is string => date !== null).sort();
-	const dueDates = result.tasks.map((task) => normalizeDate(task.due)).filter((date): date is string => date !== null).sort();
-	const startDate = settings.deriveDateRangeFromTasks && scheduledDates.length > 0 ? scheduledDates[0] as string : projectStart;
-	const endDate = settings.deriveDateRangeFromTasks && dueDates.length > 0 ? dueDates.at(-1) as string : projectEnd;
+	const { startDate, endDate } = resolveProjectDateRange(
+		projectStart,
+		projectEnd,
+		result.tasks,
+		settings.deriveDateRangeFromTasks,
+		settings.taskStartProperty,
+		settings.taskScheduledProperty,
+	);
 	const statuses = api.catalog.statuses();
 	const completedStatuses = new Set(statuses.filter((status) => status.isCompleted).map((status) => status.value));
 	const skippedStatuses = new Set(statuses.filter((status) => status.isSkipped).map((status) => status.value));

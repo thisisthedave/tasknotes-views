@@ -11,7 +11,7 @@ export const en = {
 		},
 		deriveDateRangeFromTasks: {
 			name: 'Derive date range from tasks',
-			description: 'Use the earliest task start and latest task due date when both are available.',
+			description: 'For missing project boundaries, use the earliest task scheduled or started date and the latest task due date.',
 		},
 		scopeProperty: {
 			name: 'Scope property',

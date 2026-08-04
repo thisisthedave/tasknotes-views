@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProjectProgress } from '../src/progress/ProjectProgress';
+import { buildProjectProgress, resolveProjectDateRange } from '../src/progress/ProjectProgress';
 import { getActualSeriesData } from '../src/views/CycleProgressChart';
 
 const DEFAULT_OPTIONS = {
@@ -13,6 +13,26 @@ const DEFAULT_OPTIONS = {
 };
 
 describe('buildProjectProgress', () => {
+	it('prefers explicit project dates and derives only missing boundaries', () => {
+		const tasks = [
+			{ path: 'early.md', status: 'open', scheduled: '2026-07-01', due: '2026-09-30', customProperties: { startedAt: '2026-06-20' } },
+			{ path: 'late.md', status: 'open', scheduled: '2026-07-15', due: '2026-10-15' },
+		];
+
+		expect(resolveProjectDateRange('2026-08-01', '2026-08-31', tasks, true)).toEqual({
+			startDate: '2026-08-01',
+			endDate: '2026-08-31',
+		});
+		expect(resolveProjectDateRange('2026-08-01', '', tasks, true)).toEqual({
+			startDate: '2026-08-01',
+			endDate: '2026-10-15',
+		});
+		expect(resolveProjectDateRange('', '2026-08-31', tasks, true)).toEqual({
+			startDate: '2026-06-20',
+			endDate: '2026-08-31',
+		});
+	});
+
 	it('builds cumulative task progress and pauses target progress on weekends', () => {
 		const progress = buildProjectProgress('Launch', '2026-08-07', '2026-08-11', [
 			{ path: 'one.md', status: 'in-progress', scheduled: '2026-08-07', timeEstimate: 60, customProperties: { startedAt: '2026-08-07' } },
