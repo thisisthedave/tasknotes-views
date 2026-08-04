@@ -13,7 +13,7 @@ const DEFAULT_OPTIONS = {
 describe('buildProjectProgress', () => {
 	it('builds cumulative task progress and pauses target progress on weekends', () => {
 		const progress = buildProjectProgress('Launch', '2026-08-07', '2026-08-11', [
-			{ path: 'one.md', status: 'in-progress', scheduled: '2026-08-07', timeEstimate: 60 },
+			{ path: 'one.md', status: 'in-progress', scheduled: '2026-08-07', timeEstimate: 60, customProperties: { startedAt: '2026-08-07' } },
 			{ path: 'two.md', status: 'shipped', scheduled: '2026-08-10', completedDate: '2026-08-11', timeEstimate: 30 },
 		], new Set(['shipped']), DEFAULT_OPTIONS);
 
@@ -23,7 +23,7 @@ describe('buildProjectProgress', () => {
 		expect(progress?.completed).toBe(30);
 		expect(progress?.points.map((point) => point.target)).toEqual([0, 0, 0, 45, 90]);
 		expect(progress?.points.map((point) => point.scheduled)).toEqual([60, 60, 60, 90, 90]);
-		expect(progress?.points.map((point) => point.started)).toEqual([60, 60, 60, 90, 90]);
+		expect(progress?.points.map((point) => point.started)).toEqual([60, 60, 60, 60, 90]);
 	});
 
 	it('rejects missing or inverted project date ranges', () => {
@@ -42,7 +42,7 @@ describe('buildProjectProgress', () => {
 		const progress = buildProjectProgress('Cycle', '2026-08-08', '2026-08-10', [{
 			path: 'story.md',
 			status: 'active',
-			customProperties: { points: 5, startedAt: '2026-08-09' },
+			customProperties: { points: 5, startedAt: '2026-08-09T15:09:55.802Z' },
 		}], new Set(['done']), {
 			...DEFAULT_OPTIONS,
 			scopeProperty: 'points',
@@ -54,5 +54,26 @@ describe('buildProjectProgress', () => {
 		expect(progress?.scopeIsDuration).toBe(false);
 		expect(progress?.points.map((point) => point.started)).toEqual([0, 5, 5]);
 		expect(progress?.points.map((point) => point.target)).toEqual([0, 2.5, 5]);
+	});
+
+	it('uses an ISO startedAt datetime instead of falling back to scheduled', () => {
+		const progress = buildProjectProgress('Cycle', '2026-08-01', '2026-08-05', [{
+			path: 'cauldron.md',
+			status: 'in-progress',
+			scheduled: '2026-08-02',
+			timeEstimate: 15,
+			customProperties: { startedAt: '2026-08-04T15:09:55.802Z' },
+		}], new Set(['done']), DEFAULT_OPTIONS);
+		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 15, 15]);
+	});
+
+	it('does not use scheduled or project start when a started task has no actual date', () => {
+		const progress = buildProjectProgress('Cycle', '2026-08-01', '2026-08-05', [{
+			path: 'undated.md',
+			status: 'in-progress',
+			scheduled: '2026-08-02',
+			timeEstimate: 15,
+		}], new Set(['done']), DEFAULT_OPTIONS);
+		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 0, 0]);
 	});
 });

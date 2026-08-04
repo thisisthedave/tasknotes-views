@@ -23,7 +23,7 @@ export const en = {
 		},
 		taskStartProperty: {
 			name: 'Task started property',
-			description: 'Task date property recording when progress began. Falls back to scheduled, completedDate, then the project start.',
+			description: 'Task date property recording when progress began.',
 		},
 		taskScheduledProperty: {
 			name: 'Task scheduled property',
@@ -35,7 +35,7 @@ export const en = {
 		},
 		countWeekends: {
 			name: 'Count weekends',
-			description: 'Let the ideal burndown decline on Saturday and Sunday.',
+			description: 'Target completion expects task progress on Saturday and Sunday.',
 		},
 	},
 	progress: {

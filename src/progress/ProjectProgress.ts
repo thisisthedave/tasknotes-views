@@ -32,11 +32,19 @@ export interface ProjectProgressOptions {
 	countWeekends: boolean;
 }
 
-/** Parses a YYYY-MM-DD value as a stable UTC calendar date. */
+/** Normalizes a date-only or ISO datetime value to its YYYY-MM-DD calendar component. */
+function normalizeDate(value: unknown): string | null {
+	if (typeof value !== 'string') return null;
+	const dateValue = /^(\d{4}-\d{2}-\d{2})(?:$|T)/.exec(value)?.[1];
+	if (!dateValue) return null;
+	const date = new Date(`${dateValue}T00:00:00Z`);
+	return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === dateValue ? dateValue : null;
+}
+
+/** Parses a date-only or ISO datetime value as a stable UTC calendar date. */
 function parseDate(value: unknown): Date | null {
-	if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-	const date = new Date(`${value}T00:00:00Z`);
-	return Number.isNaN(date.getTime()) ? null : date;
+	const normalized = normalizeDate(value);
+	return normalized ? new Date(`${normalized}T00:00:00Z`) : null;
 }
 
 /** Formats a UTC calendar date without timezone drift. */
@@ -99,13 +107,12 @@ function getTaskScope(task: TaskNotesTask, property: string): number {
 /** Reads a configured task property when it contains a valid calendar date. */
 function getTaskDate(task: TaskNotesTask, property: string): string | undefined {
 	const value = getTaskProperty(task, property);
-	return parseDate(value) ? value as string : undefined;
+	return normalizeDate(value) ?? undefined;
 }
 
-/** Reads a string property from project frontmatter. */
-function getProjectProperty(frontmatter: Record<string, unknown> | undefined, property: string): string {
-	const value = frontmatter?.[property];
-	return typeof value === 'string' ? value : '';
+/** Reads and normalizes a date property from project frontmatter. */
+function getProjectDate(frontmatter: Record<string, unknown> | undefined, property: string): string {
+	return normalizeDate(frontmatter?.[property]) ?? '';
 }
 
 /** Computes cumulative started and completed estimates for one project date range. */
@@ -136,12 +143,12 @@ export function buildProjectProgress(
 			return scheduledDate && clampDate(scheduledDate, startDate, endDate) <= current ? sum + entry.scope : sum;
 		}, 0);
 		const started = estimatedTasks.filter(({ task }) => isStarted(task)).reduce((sum, entry) => {
-			const startedDate = clampDate(getTaskDate(entry.task, options.taskStartProperty) ?? entry.task.scheduled ?? entry.task.completedDate, startDate, endDate);
-			return startedDate <= current ? sum + entry.scope : sum;
+			const startedDate = getTaskDate(entry.task, options.taskStartProperty) ?? getTaskDate(entry.task, 'completedDate');
+			return startedDate && clampDate(startedDate, startDate, endDate) <= current ? sum + entry.scope : sum;
 		}, 0);
 		const completed = estimatedTasks.filter(({ task }) => isCompleted(task)).reduce((sum, entry) => {
-			const completedDate = clampDate(entry.task.completedDate, startDate, endDate);
-			return completedDate <= current ? sum + entry.scope : sum;
+			const completedDate = getTaskDate(entry.task, 'completedDate');
+			return completedDate && clampDate(completedDate, startDate, endDate) <= current ? sum + entry.scope : sum;
 		}, 0);
 		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed };
 	});
@@ -165,10 +172,10 @@ export async function loadProjectProgress(app: App, file: TFile, settings: TaskN
 			includeArchived: false,
 		},
 	});
-	const projectStart = getProjectProperty(frontmatter, settings.projectStartProperty);
-	const projectEnd = getProjectProperty(frontmatter, settings.projectEndProperty);
-	const scheduledDates = result.tasks.map((task) => task.scheduled).filter((date): date is string => parseDate(date) !== null).sort();
-	const dueDates = result.tasks.map((task) => task.due).filter((date): date is string => parseDate(date) !== null).sort();
+	const projectStart = getProjectDate(frontmatter, settings.projectStartProperty);
+	const projectEnd = getProjectDate(frontmatter, settings.projectEndProperty);
+	const scheduledDates = result.tasks.map((task) => normalizeDate(task.scheduled)).filter((date): date is string => date !== null).sort();
+	const dueDates = result.tasks.map((task) => normalizeDate(task.due)).filter((date): date is string => date !== null).sort();
 	const startDate = settings.deriveDateRangeFromTasks && scheduledDates.length > 0 ? scheduledDates[0] as string : projectStart;
 	const endDate = settings.deriveDateRangeFromTasks && dueDates.length > 0 ? dueDates.at(-1) as string : projectEnd;
 	const completedStatuses = new Set(api.catalog.statuses().filter((status) => status.isCompleted).map((status) => status.value));
