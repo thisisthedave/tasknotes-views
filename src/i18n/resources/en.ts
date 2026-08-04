@@ -42,7 +42,7 @@ export const en = {
 		title: '{projectName} Progress',
 		dateRange: '{startDate} – {endDate}',
 		loading: 'Loading project progress…',
-		missingDates: 'Add valid project start and end dates to show project progress.',
+		missingDates: 'Add valid date values to the “{startProperty}” and “{endProperty}” frontmatter properties on this project note to show project progress.',
 		loadError: 'Could not load project progress.',
 		metrics: {
 			scope: 'Scope',

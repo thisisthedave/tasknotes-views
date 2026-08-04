@@ -50,7 +50,13 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 			chart = null;
 			if (!progress) {
 				element.empty();
-				element.createDiv({ cls: 'tasknotes-views-cycle-progress__empty', text: plugin.i18n.translate('progress.missingDates') });
+				element.createDiv({
+					cls: 'tasknotes-views-cycle-progress__empty',
+					text: plugin.i18n.translate('progress.missingDates', {
+						startProperty: plugin.settings.projectStartProperty,
+						endProperty: plugin.settings.projectEndProperty,
+					}),
+				});
 				return;
 			}
 			chart = renderProgress(element, progress, plugin);
