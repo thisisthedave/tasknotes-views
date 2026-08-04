@@ -10,6 +10,9 @@ export interface ProjectProgressPoint {
 	scheduled: number;
 	started: number;
 	completed: number;
+	scheduledTasks: string[];
+	startedTasks: string[];
+	completedTasks: string[];
 }
 
 export interface ProjectProgress {
@@ -20,6 +23,7 @@ export interface ProjectProgress {
 	scheduled: number;
 	started: number;
 	completed: number;
+	today: string;
 	scopeIsDuration: boolean;
 	points: ProjectProgressPoint[];
 }
@@ -31,6 +35,7 @@ export interface ProjectProgressOptions {
 	inProgressStatuses: string[];
 	scopeIsDuration: boolean;
 	countWeekends: boolean;
+	today?: string;
 }
 
 /** Normalizes a date-only or ISO datetime value to its YYYY-MM-DD calendar component. */
@@ -123,6 +128,7 @@ export function buildProjectProgress(
 	});
 	const scope = workItems.reduce((sum, item) => sum + item.scope, 0);
 	const target = targetProgress(dates, scope, options.countWeekends);
+	const today = normalizeDate(options.today) ?? formatDate(new Date());
 
 	// Status history is not public, so scheduled/completed dates anchor cumulative state changes on the timeline.
 	const points = dates.map((date, index) => {
@@ -136,9 +142,12 @@ export function buildProjectProgress(
 		const completed = workItems.reduce((sum, item) => {
 			return item.completedDate && clampDate(item.completedDate, startDate, endDate) <= current ? sum + item.scope : sum;
 		}, 0);
-		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed };
+		const scheduledTasks = workItems.filter((item) => item.scheduledDate && clampDate(item.scheduledDate, startDate, endDate) === current).map((item) => item.name);
+		const startedTasks = workItems.filter((item) => item.startedDate && clampDate(item.startedDate, startDate, endDate) === current).map((item) => item.name);
+		const completedTasks = workItems.filter((item) => item.completedDate && clampDate(item.completedDate, startDate, endDate) === current).map((item) => item.name);
+		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed, scheduledTasks, startedTasks, completedTasks };
 	});
-	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, scopeIsDuration: options.scopeIsDuration, points };
+	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, today, scopeIsDuration: options.scopeIsDuration, points };
 }
 
 /** Loads project dates and matching project tasks through Obsidian and TaskNotes' public query API. */

@@ -2,10 +2,16 @@ import { generateRecurringInstances } from '@tasknotes/model/recurrence';
 import { TaskNotesTask } from '../tasknotes/TaskNotesApi';
 
 export interface ProgressWorkItem {
+	name: string;
 	scope: number;
 	scheduledDate?: string;
 	startedDate?: string;
 	completedDate?: string;
+}
+
+/** Returns a readable task name when older API data omits the title. */
+function getTaskName(task: TaskNotesTask): string {
+	return task.title?.trim() || task.path.replace(/\.md$/i, '').split('/').at(-1) || task.path;
 }
 
 export interface OccurrenceProjectionOptions {
@@ -70,6 +76,7 @@ function createTaskWorkItem(task: TaskNotesTask, options: OccurrenceProjectionOp
 	const started = options.inProgressStatuses.has(task.status) || completed;
 	const completionDate = completed ? getDate(task, 'completedDate') : undefined;
 	return {
+		name: getTaskName(task),
 		scope,
 		scheduledDate: getDate(task, options.taskScheduledProperty),
 		startedDate: started ? getDate(task, options.taskStartProperty) ?? completionDate : undefined,
@@ -107,6 +114,7 @@ function projectRecurringParent(
 			const started = options.inProgressStatuses.has(occurrence.status) || completed;
 			const completionDate = completed ? getDate(occurrence, 'completedDate') ?? occurrenceDate : undefined;
 			items.push({
+				name: getTaskName(occurrence),
 				scope,
 				scheduledDate: getDate(occurrence, options.taskScheduledProperty),
 				startedDate: started ? getDate(occurrence, options.taskStartProperty) ?? completionDate : undefined,
@@ -118,6 +126,7 @@ function projectRecurringParent(
 		if (skippedInstances.has(occurrenceDate) || parentScope <= 0) continue;
 		const completed = completedInstances.has(occurrenceDate);
 		items.push({
+			name: getTaskName(parent),
 			scope: parentScope,
 			scheduledDate: occurrenceDate,
 			startedDate: completed ? occurrenceDate : undefined,

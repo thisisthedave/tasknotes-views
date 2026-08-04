@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildProjectProgress } from '../src/progress/ProjectProgress';
+import { getActualSeriesData } from '../src/views/CycleProgressChart';
 
 const DEFAULT_OPTIONS = {
 	scopeProperty: 'timeEstimate',
@@ -8,6 +9,7 @@ const DEFAULT_OPTIONS = {
 	inProgressStatuses: ['in-progress'],
 	scopeIsDuration: true,
 	countWeekends: false,
+	today: '2026-08-04',
 };
 
 describe('buildProjectProgress', () => {
@@ -59,12 +61,14 @@ describe('buildProjectProgress', () => {
 	it('uses an ISO startedAt datetime instead of falling back to scheduled', () => {
 		const progress = buildProjectProgress('Cycle', '2026-08-01', '2026-08-05', [{
 			path: 'cauldron.md',
+			title: 'Polish the sentient cauldron',
 			status: 'in-progress',
 			scheduled: '2026-08-02',
 			timeEstimate: 15,
 			customProperties: { startedAt: '2026-08-04T15:09:55.802Z' },
 		}], new Set(['done']), DEFAULT_OPTIONS);
 		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 15, 15]);
+		expect(progress?.points.find((point) => point.date === '2026-08-04')?.startedTasks).toEqual(['Polish the sentient cauldron']);
 	});
 
 	it('does not use scheduled or project start when a started task has no actual date', () => {
@@ -75,6 +79,16 @@ describe('buildProjectProgress', () => {
 			timeEstimate: 15,
 		}], new Set(['done']), DEFAULT_OPTIONS);
 		expect(progress?.points.map((point) => point.started)).toEqual([0, 0, 0, 0, 0]);
+	});
+
+	it('terminates actual progress series after today', () => {
+		const progress = buildProjectProgress('Cycle', '2026-08-01', '2026-08-05', [{
+			path: 'started.md',
+			status: 'in-progress',
+			timeEstimate: 10,
+			customProperties: { startedAt: '2026-08-03' },
+		}], new Set(['done']), DEFAULT_OPTIONS);
+		expect(progress && getActualSeriesData(progress, 'started')).toEqual([0, 0, 10, 10, null]);
 	});
 
 	it('projects virtual recurring occurrences and excludes skipped dates from scope', () => {

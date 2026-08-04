@@ -9,6 +9,7 @@ export interface TaskNotesStatus {
 export interface TaskNotesTask {
 	[key: string]: unknown;
 	path: string;
+	title?: string;
 	status: string;
 	scheduled?: string;
 	completedDate?: string;
