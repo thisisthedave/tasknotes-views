@@ -2,7 +2,7 @@ import { App, moment, normalizePath, TFile } from 'obsidian';
 import TaskNotesViewsPlugin from '../main';
 import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { getCycleNumber, renderCycleRelativePath } from './CycleNaming';
-import { CycleDateRange, getCycleDateRange, getNextCycleDateRange } from './CycleSchedule';
+import { CycleDateRange, getCycleDateRange, getNextCycleDateRange, isDateInCycleRange } from './CycleSchedule';
 
 interface TemplaterPluginShape {
 	templater?: { overwrite_file_commands(file: TFile): Promise<void> };
@@ -31,6 +31,17 @@ export class CycleProjectService {
 		const folder = this.getCycleFolder();
 		return this.app.vault.getMarkdownFiles().filter((file) =>
 			(!folder || file.path.startsWith(`${folder}/`)) && getCycleNumber(file.path) !== null);
+	}
+
+	/** Finds the existing cycle whose configured project dates inclusively contain an ISO calendar date. */
+	findCycleContainingDate(date: string): TFile | null {
+		return this.listCycleFiles().find((file) => {
+			const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			const startDate = String(frontmatter?.[this.plugin.settings.projectStartProperty] ?? '');
+			const endDate = String(frontmatter?.[this.plugin.settings.projectEndProperty] ?? '');
+			return /^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate) &&
+				isDateInCycleRange(date, { startDate, endDate });
+		}) ?? null;
 	}
 
 	/** Infers the next scheduled range and annual counter from existing cycle metadata. */

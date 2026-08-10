@@ -1,11 +1,11 @@
-import { moment, Notice, TFile } from 'obsidian';
+import { App, Modal, moment, Notice, Setting, TFile } from 'obsidian';
 import TaskNotesViewsPlugin from '../main';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { getCycleNumber, withCycleNumber } from './CycleNaming';
 import { CycleProjectService } from './CycleProjectService';
 import { CycleRolloverService } from './CycleRolloverService';
 import { CycleSnapshotService } from './CycleSnapshotService';
-import { getNextCycleDateRange } from './CycleSchedule';
+import { CycleDateRange, getCycleDateRange, getNextCycleDateRange } from './CycleSchedule';
 import { chooseProject, ProjectSuggestion } from './ProjectSuggestModal';
 
 /** Registers user-invoked cycle creation and close commands. */
@@ -35,6 +35,32 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 	});
 
 	plugin.addCommand({
+		id: 'open-cycle-note',
+		name: 'Open cycle note',
+		callback: async () => {
+			try {
+				const today = moment().format('YYYY-MM-DD');
+				const range = getCycleDateRange(
+					today,
+					plugin.settings.cycleStartDay,
+					plugin.settings.cycleDurationWeeks,
+				);
+				const existing = projects.findCycleContainingDate(today);
+				if (existing) {
+					await plugin.app.workspace.getLeaf(false).openFile(existing);
+					return;
+				}
+
+				// The confirmation makes note creation explicit while keeping the command a one-step open for existing cycles.
+				if (await promptToCreateCycle(plugin.app, range)) await projects.createCycle({ range });
+			} catch (error) {
+				console.error('[TaskNotes Views] Could not open cycle note', error);
+				new Notice('Could not open cycle note. Check the console for details.');
+			}
+		},
+	});
+
+	plugin.addCommand({
 		id: 'rollover-cycle-tasks',
 		name: 'Close cycle',
 		callback: async () => {
@@ -46,6 +72,45 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 			}
 		},
 	});
+}
+
+/** Prompts the user before creating the cycle note that is scheduled for today. */
+function promptToCreateCycle(app: App, range: CycleDateRange): Promise<boolean> {
+	return new Promise((resolve) => new CycleCreateConfirmModal(app, range, resolve).open());
+}
+
+/** Collects a creation decision without treating a dismissed confirmation as approval. */
+class CycleCreateConfirmModal extends Modal {
+	private decision: boolean | null = null;
+
+	constructor(
+		app: App,
+		private readonly range: CycleDateRange,
+		private readonly resolve: (decision: boolean) => void,
+	) {
+		super(app);
+	}
+
+	/** Renders the creation prompt for the date range that has no existing cycle note. */
+	onOpen(): void {
+		this.setTitle('Create cycle note?');
+		this.contentEl.createEl('p', { text: `No cycle note covers ${this.range.startDate} to ${this.range.endDate}.` });
+		new Setting(this.contentEl)
+			.addButton((button) => button.setButtonText('Cancel').onClick(() => this.choose(false)))
+			.addButton((button) => button.setButtonText('Create').setCta().onClick(() => this.choose(true)));
+	}
+
+	/** Resolves the pending prompt when Obsidian closes it by any interaction. */
+	onClose(): void {
+		this.contentEl.empty();
+		this.resolve(this.decision ?? false);
+	}
+
+	/** Records the explicit button choice before closing the modal. */
+	private choose(decision: boolean): void {
+		this.decision = decision;
+		this.close();
+	}
 }
 
 /** Runs the two-project close flow, snapshots history, and moves eligible work forward. */

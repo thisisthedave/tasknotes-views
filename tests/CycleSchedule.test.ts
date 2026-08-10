@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getCycleNumber, renderCycleRelativePath, withCycleNumber } from '../src/cycles/CycleNaming';
-import { getCycleDateRange, getNextCycleDateRange } from '../src/cycles/CycleSchedule';
+import { getCycleDateRange, getNextCycleDateRange, isDateInCycleRange } from '../src/cycles/CycleSchedule';
 
 describe('cycle schedule', () => {
 	it('anchors a two-week cycle to Monday with an inclusive Sunday end', () => {
@@ -18,6 +18,13 @@ describe('cycle schedule', () => {
 			endDate: '2026-08-31',
 		});
 	});
+
+	it('includes dates within stored cycle boundaries without requiring a predicted range match', () => {
+		const storedRange = { startDate: '2026-08-01', endDate: '2026-08-20' };
+		expect(isDateInCycleRange('2026-08-10', storedRange)).toBe(true);
+		expect(isDateInCycleRange('2026-07-31', storedRange)).toBe(false);
+		expect(isDateInCycleRange('2026-08-21', storedRange)).toBe(false);
+	});
 });
 
 describe('cycle naming', () => {
@@ -33,4 +40,3 @@ describe('cycle naming', () => {
 		expect(withCycleNumber('Cycles/2026-Cycle.md', 2)).toBeNull();
 	});
 });
-

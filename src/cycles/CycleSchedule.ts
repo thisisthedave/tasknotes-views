@@ -16,6 +16,11 @@ export interface CycleDateRange {
 	endDate: string;
 }
 
+/** Returns whether an ISO calendar date falls within an inclusive cycle date range. */
+export function isDateInCycleRange(date: string, range: CycleDateRange): boolean {
+	return range.startDate <= date && date <= range.endDate;
+}
+
 /** Resolves the cycle containing today, with an inclusive end date. */
 export function getCycleDateRange(today: string, startDay: CycleStartDay, durationWeeks: number): CycleDateRange {
 	const start = moment(today, 'YYYY-MM-DD', true).startOf('day');
@@ -39,4 +44,3 @@ export function getNextCycleDateRange(range: CycleDateRange, durationWeeks: numb
 		endDate: start.clone().add(safeWeeks, 'weeks').subtract(1, 'day').format('YYYY-MM-DD'),
 	};
 }
-
