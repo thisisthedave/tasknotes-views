@@ -180,6 +180,28 @@ describe('buildProjectProgress', () => {
 		}]);
 	});
 
+	it('counts an in-range recurring completion even when it falls outside the expected recurrence date', () => {
+		const parent = {
+			path: 'Tasks/monthly-planning.md',
+			status: 'open',
+			recurrence: 'DTSTART:20250702T090000;FREQ=MONTHLY;BYMONTHDAY=1',
+			timeEstimate: 30,
+			complete_instances: ['2026-08-09'],
+		};
+		const progress = buildProjectProgress('Cycle', '2026-08-03', '2026-08-16', [parent], new Set(['done']), {
+			...DEFAULT_OPTIONS,
+			today: '2026-08-10',
+		});
+		expect(progress?.scope).toBe(30);
+		expect(progress?.completed).toBe(30);
+		expect(progress?.points.find((point) => point.date === '2026-08-09')?.completed).toBe(30);
+		expect(progress?.workItems).toMatchObject([{
+			taskPath: 'Tasks/monthly-planning.md',
+			recurrenceDate: '2026-08-09',
+			completedDate: '2026-08-09',
+		}]);
+	});
+
 	it('uses materialized estimates and suppresses projections moved to another project', () => {
 		const parent = {
 			path: 'Tasks/cauldron.md',

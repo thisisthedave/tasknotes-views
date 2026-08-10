@@ -144,6 +144,21 @@ function projectRecurringParent(
 			completedDate: completed ? occurrenceDate : undefined,
 		});
 	}
+
+	for (const completionDate of completedInstances) {
+		if (completionDate < startDate || completionDate > endDate || occurrenceDates.includes(completionDate) || parentScope <= 0) continue;
+		// TaskNotes can record a recurring completion on a day other than its scheduled recurrence; retain that completed scope in this cycle.
+		items.push({
+			name: getTaskName(parent),
+			scope: parentScope,
+			taskPath: parent.path,
+			recurring: true,
+			recurrenceDate: completionDate,
+			scheduledDate: completionDate,
+			startedDate: completionDate,
+			completedDate: completionDate,
+		});
+	}
 	return items;
 }
 
