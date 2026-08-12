@@ -85,7 +85,8 @@ function renderProgress(element: HTMLElement, progress: ProjectProgress, plugin:
 
 /** Creates an asynchronously populated project progress widget with explicit cleanup. */
 export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TFile, document: Document): { element: HTMLElement; dispose(): void } {
-	const element = document.createElement('section');
+	// A document-owned fragment lets Obsidian's helper create a detached element for the correct window.
+	const element = document.createDocumentFragment().createEl('section');
 	element.className = CYCLE_PROGRESS_CLASS;
 	element.setAttribute('contenteditable', 'false');
 	element.createDiv({ cls: 'tasknotes-views-cycle-progress__loading', text: plugin.i18n.translate('progress.loading') });

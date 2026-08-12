@@ -1,8 +1,12 @@
-import { App, moment, normalizePath, TFile } from 'obsidian';
+import { App, moment as obsidianMoment, normalizePath, TFile } from 'obsidian';
+import type Moment from 'moment';
 import TaskNotesViewsPlugin from '../main';
 import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { getCycleNumber, renderCycleRelativePath } from './CycleNaming';
 import { CycleDateRange, getCycleDateRange, getNextCycleDateRange, isDateInCycleRange } from './CycleSchedule';
+
+// Obsidian exposes Moment at runtime; this explicit type preserves the safe API boundary for ESLint.
+const moment: typeof Moment = obsidianMoment;
 
 interface TemplaterPluginShape {
 	templater?: { overwrite_file_commands(file: TFile): Promise<void> };

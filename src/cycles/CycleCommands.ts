@@ -1,4 +1,5 @@
-import { App, Modal, moment, Notice, Setting, TFile } from 'obsidian';
+import { App, Modal, moment as obsidianMoment, Notice, Setting, TFile } from 'obsidian';
+import type Moment from 'moment';
 import TaskNotesViewsPlugin from '../main';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { getCycleNumber, withCycleNumber } from './CycleNaming';
@@ -7,6 +8,9 @@ import { CycleRolloverService } from './CycleRolloverService';
 import { CycleSnapshotService } from './CycleSnapshotService';
 import { CycleDateRange, getCycleDateRange, getNextCycleDateRange } from './CycleSchedule';
 import { chooseProject, ProjectSuggestion } from './ProjectSuggestModal';
+
+// Obsidian exposes Moment at runtime; this explicit type preserves the safe API boundary for ESLint.
+const moment: typeof Moment = obsidianMoment;
 
 /** Registers user-invoked cycle creation and close commands. */
 export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {

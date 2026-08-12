@@ -1,9 +1,13 @@
-import { App, moment, normalizePath, stringifyYaml, TFile } from 'obsidian';
+import { App, moment as obsidianMoment, normalizePath, stringifyYaml, TFile } from 'obsidian';
+import type Moment from 'moment';
 import type TaskNotesViewsPlugin from '../main';
 import { loadLiveProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
+
+// Obsidian exposes Moment at runtime; this explicit type preserves the safe API boundary for ESLint.
+const moment: typeof Moment = obsidianMoment;
 
 /** Narrows Obsidian's loosely typed frontmatter cache to safe property access. */
 function getFrontmatter(app: App, file: TFile): Record<string, unknown> | undefined {

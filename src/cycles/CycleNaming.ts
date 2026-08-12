@@ -1,4 +1,8 @@
-import { moment, normalizePath } from 'obsidian';
+import { moment as obsidianMoment, normalizePath } from 'obsidian';
+import type Moment from 'moment';
+
+// Obsidian exposes Moment at runtime; this explicit type preserves the safe API boundary for ESLint.
+const moment: typeof Moment = obsidianMoment;
 
 const COUNTER_SENTINEL = '__TASKNOTES_VIEWS_CYCLE__';
 
@@ -22,4 +26,3 @@ export function withCycleNumber(path: string, cycleNumber: number): string | nul
 	if (cycleNumber < 1 || !/-(\d+)(?:\.md)?$/i.test(path)) return null;
 	return path.replace(/-(\d+)(?=\.md$|$)/i, `-${cycleNumber}`);
 }
-

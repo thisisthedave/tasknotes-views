@@ -1,5 +1,9 @@
-import { moment } from 'obsidian';
+import { moment as obsidianMoment } from 'obsidian';
+import type Moment from 'moment';
 import { CycleStartDay } from '../settings';
+
+// Obsidian exposes Moment at runtime; this explicit type preserves the safe API boundary for ESLint.
+const moment: typeof Moment = obsidianMoment;
 
 const WEEKDAY_INDEX: Record<Exclude<CycleStartDay, 'current'>, number> = {
 	sunday: 0,
