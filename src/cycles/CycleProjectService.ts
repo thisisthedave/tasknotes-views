@@ -48,7 +48,13 @@ export class CycleProjectService {
 		}) ?? null;
 	}
 
-	/** Infers the next scheduled range and annual counter from existing cycle metadata. */
+	/**
+	 * Infers the next unoccupied range and annual counter from existing cycle metadata.
+	 *
+	 * When today belongs to a stored cycle, the next range follows that cycle rather
+	 * than the nominal weekday schedule. Consecutive future cycles are skipped so a
+	 * newly created note never begins inside an existing cycle.
+	 */
 	inferNextCycle(today = moment().format('YYYY-MM-DD')): { range: CycleDateRange; cycleNumber: number; previousProject: TFile | null } {
 		const baseRange = getCycleDateRange(today, this.plugin.settings.cycleStartDay, this.plugin.settings.cycleDurationWeeks);
 		const datedCycles = this.listCycleFiles().map((file) => {
@@ -58,12 +64,25 @@ export class CycleProjectService {
 			return { file, startDate, endDate, cycleNumber: getCycleNumber(file.path) ?? 0 };
 		}).filter((cycle) => /^\d{4}-\d{2}-\d{2}$/.test(cycle.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(cycle.endDate))
 			.sort((left, right) => left.startDate.localeCompare(right.startDate));
+		let previous = datedCycles.find((cycle) => isDateInCycleRange(today, cycle)) ?? null;
+		let range = previous
+			? getNextCycleDateRange(previous, this.plugin.settings.cycleDurationWeeks)
+			: null;
+		// Stored ranges are authoritative: follow each immediately occupied range before creating a gap-free successor.
+		while (range) {
+			const candidateRange = range;
+			const occupied = datedCycles.find((cycle) => isDateInCycleRange(candidateRange.startDate, cycle));
+			if (!occupied) break;
+			previous = occupied;
+			range = getNextCycleDateRange(occupied, this.plugin.settings.cycleDurationWeeks);
+		}
 		const latest = datedCycles.at(-1);
-		const range = latest && latest.startDate >= baseRange.startDate
+		const resolvedRange = range ?? (latest && latest.startDate >= baseRange.startDate
 			? getNextCycleDateRange({ startDate: latest.startDate, endDate: latest.endDate }, this.plugin.settings.cycleDurationWeeks)
-			: baseRange;
-		const sameYear = latest?.startDate.slice(0, 4) === range.startDate.slice(0, 4);
-		return { range, cycleNumber: sameYear ? (latest?.cycleNumber ?? 0) + 1 : 1, previousProject: latest?.file ?? null };
+			: baseRange);
+		const numberedPrevious = previous ?? latest;
+		const sameYear = numberedPrevious?.startDate.slice(0, 4) === resolvedRange.startDate.slice(0, 4);
+		return { range: resolvedRange, cycleNumber: sameYear ? (numberedPrevious?.cycleNumber ?? 0) + 1 : 1, previousProject: numberedPrevious?.file ?? null };
 	}
 
 	/** Builds the vault-relative Markdown path for a scheduled cycle. */

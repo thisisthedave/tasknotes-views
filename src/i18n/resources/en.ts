@@ -102,4 +102,12 @@ export const en = {
 			hours: '{value}h',
 		},
 	},
+	cycles: {
+		rolloverConfirm: {
+			title: 'Roll over incomplete tasks?',
+			description: 'Move eligible incomplete tasks from {previous} to {next}?',
+			cancel: 'Cancel',
+			confirm: 'Roll over',
+		},
+	},
 } as const;

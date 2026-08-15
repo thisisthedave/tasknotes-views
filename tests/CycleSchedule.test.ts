@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { getCycleNumber, renderCycleRelativePath, withCycleNumber } from '../src/cycles/CycleNaming';
+import { CycleProjectService } from '../src/cycles/CycleProjectService';
 import { getCycleDateRange, getNextCycleDateRange, isDateInCycleRange } from '../src/cycles/CycleSchedule';
+import { TFile } from 'obsidian';
+import type { App } from 'obsidian';
 
 describe('cycle schedule', () => {
 	it('anchors a two-week cycle to Monday with an inclusive Sunday end', () => {
@@ -24,6 +27,46 @@ describe('cycle schedule', () => {
 		expect(isDateInCycleRange('2026-08-10', storedRange)).toBe(true);
 		expect(isDateInCycleRange('2026-07-31', storedRange)).toBe(false);
 		expect(isDateInCycleRange('2026-08-21', storedRange)).toBe(false);
+	});
+});
+
+/** Builds the minimal metadata-backed cycle service needed to test date inference. */
+function createCycleService(cycles: Array<{ path: string; startDate: string; endDate: string }>): CycleProjectService {
+	const files = cycles.map((cycle) => Object.assign(new TFile(), { path: cycle.path }));
+	const metadata = new Map(cycles.map((cycle) => [cycle.path, {
+		frontmatter: { scheduled: cycle.startDate, due: cycle.endDate },
+	}]));
+	const app = {
+		vault: { getMarkdownFiles: () => files },
+		metadataCache: { getFileCache: (file: TFile) => metadata.get(file.path) },
+	} as unknown as App;
+	const plugin = {
+		settings: {
+			cycleProjectFolder: '', projectStartProperty: 'scheduled', projectEndProperty: 'due',
+			cycleStartDay: 'monday', cycleDurationWeeks: 2,
+		},
+	} as unknown as ConstructorParameters<typeof CycleProjectService>[1];
+	return new CycleProjectService(app, plugin);
+}
+
+describe('cycle project inference', () => {
+	it('starts after the cycle containing today instead of the current week boundary', () => {
+		const inferred = createCycleService([{
+			path: 'Cycles/2026-Cycle-4.md', startDate: '2026-08-03', endDate: '2026-08-16',
+		}]).inferNextCycle('2026-08-12');
+		expect(inferred.range).toEqual({ startDate: '2026-08-17', endDate: '2026-08-30' });
+		expect(inferred.previousProject?.path).toBe('Cycles/2026-Cycle-4.md');
+	});
+
+	it('advances beyond consecutive future ranges that would occupy the new start date', () => {
+		const inferred = createCycleService([
+			{ path: 'Cycles/2026-Cycle-4.md', startDate: '2026-08-03', endDate: '2026-08-16' },
+			{ path: 'Cycles/2026-Cycle-5.md', startDate: '2026-08-17', endDate: '2026-08-30' },
+			{ path: 'Cycles/2026-Cycle-6.md', startDate: '2026-08-31', endDate: '2026-09-13' },
+		]).inferNextCycle('2026-08-12');
+		expect(inferred.range).toEqual({ startDate: '2026-09-14', endDate: '2026-09-27' });
+		expect(inferred.cycleNumber).toBe(7);
+		expect(inferred.previousProject?.path).toBe('Cycles/2026-Cycle-6.md');
 	});
 });
 

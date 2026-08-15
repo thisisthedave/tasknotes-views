@@ -26,7 +26,8 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 				const inferred = projects.inferNextCycle();
 				const created = await projects.createCycle(inferred);
 				let moved = 0;
-				if (plugin.settings.cycleTaskRollover && inferred.previousProject) {
+				if (plugin.settings.cycleTaskRollover && inferred.previousProject &&
+					await promptToConfirmRollover(plugin, inferred.previousProject, created)) {
 					await snapshots.closeCycle(inferred.previousProject, 'automatic-rollover');
 					moved = await rollover.rollover(inferred.previousProject, created);
 				}
@@ -76,6 +77,49 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 			}
 		},
 	});
+}
+
+/** Prompts for consent before moving incomplete tasks to a newly created cycle. */
+function promptToConfirmRollover(plugin: TaskNotesViewsPlugin, previous: TFile, next: TFile): Promise<boolean> {
+	return new Promise((resolve) => new CycleRolloverConfirmModal(plugin, previous, next, resolve).open());
+}
+
+/** Collects explicit rollover consent without treating a dismissed prompt as approval. */
+class CycleRolloverConfirmModal extends Modal {
+	private decision: boolean | null = null;
+
+	constructor(
+		private readonly plugin: TaskNotesViewsPlugin,
+		private readonly previous: TFile,
+		private readonly next: TFile,
+		private readonly resolve: (decision: boolean) => void,
+	) {
+		super(plugin.app);
+	}
+
+	/** Renders the task-move confirmation after the destination cycle has been created. */
+	onOpen(): void {
+		this.setTitle(this.plugin.i18n.translate('cycles.rolloverConfirm.title'));
+		this.contentEl.createEl('p', { text: this.plugin.i18n.translate('cycles.rolloverConfirm.description', {
+			previous: this.previous.basename,
+			next: this.next.basename,
+		}) });
+		new Setting(this.contentEl)
+			.addButton((button) => button.setButtonText(this.plugin.i18n.translate('cycles.rolloverConfirm.cancel')).onClick(() => this.choose(false)))
+			.addButton((button) => button.setButtonText(this.plugin.i18n.translate('cycles.rolloverConfirm.confirm')).setCta().onClick(() => this.choose(true)));
+	}
+
+	/** Resolves the pending prompt when Obsidian closes it by any interaction. */
+	onClose(): void {
+		this.contentEl.empty();
+		this.resolve(this.decision ?? false);
+	}
+
+	/** Records the explicit button choice before closing the modal. */
+	private choose(decision: boolean): void {
+		this.decision = decision;
+		this.close();
+	}
 }
 
 /** Prompts the user before creating the cycle note that is scheduled for today. */
