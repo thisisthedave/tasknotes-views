@@ -1,6 +1,7 @@
 import { App, Modal, moment as obsidianMoment, Notice, Setting, TFile } from 'obsidian';
 import type Moment from 'moment';
 import TaskNotesViewsPlugin from '../main';
+import type { Translate } from '../i18n';
 import { isTaskNotesProject } from '../tasknotes/TaskNotesProjectDetector';
 import { getCycleNumber, withCycleNumber } from './CycleNaming';
 import { CycleProjectService } from './CycleProjectService';
@@ -14,13 +15,14 @@ const moment: typeof Moment = obsidianMoment;
 
 /** Registers user-invoked cycle creation and close commands. */
 export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
+	const translate = plugin.i18n.translate.bind(plugin.i18n);
 	const projects = new CycleProjectService(plugin.app, plugin);
 	const rollover = new CycleRolloverService(plugin.app);
 	const snapshots = new CycleSnapshotService(plugin.app, plugin);
 
 	plugin.addCommand({
 		id: 'create-cycle',
-		name: 'Create cycle',
+		name: translate('cycles.commands.create'),
 		callback: async () => {
 			try {
 				const inferred = projects.inferNextCycle();
@@ -31,17 +33,19 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 					await snapshots.closeCycle(inferred.previousProject, 'automatic-rollover');
 					moved = await rollover.rollover(inferred.previousProject, created);
 				}
-				new Notice(moved > 0 ? `Created ${created.basename} and rolled over ${moved} tasks.` : `Created ${created.basename}.`);
+				new Notice(moved > 0
+					? translate('cycles.notices.createdAndRolledOver', { cycleName: created.basename, count: moved, taskLabel: translate('cycles.notices.tasks') })
+					: translate('cycles.notices.created', { cycleName: created.basename }));
 			} catch (error) {
 				console.error('[TaskNotes Views] Could not create cycle', error);
-				new Notice('Could not create cycle. Check the console for details.');
+				new Notice(translate('cycles.notices.createError'));
 			}
 		},
 	});
 
 	plugin.addCommand({
 		id: 'open-cycle-note',
-		name: 'Open cycle note',
+		name: translate('cycles.commands.open'),
 		callback: async () => {
 			try {
 				const today = moment().format('YYYY-MM-DD');
@@ -57,23 +61,23 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 				}
 
 				// The confirmation makes note creation explicit while keeping the command a one-step open for existing cycles.
-				if (await promptToCreateCycle(plugin.app, range)) await projects.createCycle({ range });
+				if (await promptToCreateCycle(plugin.app, range, translate)) await projects.createCycle({ range });
 			} catch (error) {
 				console.error('[TaskNotes Views] Could not open cycle note', error);
-				new Notice('Could not open cycle note. Check the console for details.');
+				new Notice(translate('cycles.notices.openError'));
 			}
 		},
 	});
 
 	plugin.addCommand({
 		id: 'rollover-cycle-tasks',
-		name: 'Close cycle',
+		name: translate('cycles.commands.close'),
 		callback: async () => {
 			try {
 				await runCloseCycleCommand(plugin, projects, rollover, snapshots);
 			} catch (error) {
 				console.error('[TaskNotes Views] Could not close cycle', error);
-				new Notice('Could not close cycle. Check the console for details.');
+				new Notice(translate('cycles.notices.closeError'));
 			}
 		},
 	});
@@ -81,7 +85,7 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 
 /** Prompts for consent before moving incomplete tasks to a newly created cycle. */
 function promptToConfirmRollover(plugin: TaskNotesViewsPlugin, previous: TFile, next: TFile): Promise<boolean> {
-	return new Promise((resolve) => new CycleRolloverConfirmModal(plugin, previous, next, resolve).open());
+	return new Promise((resolve) => new CycleRolloverConfirmModal(plugin.app, plugin.i18n.translate.bind(plugin.i18n), previous, next, resolve).open());
 }
 
 /** Collects explicit rollover consent without treating a dismissed prompt as approval. */
@@ -89,24 +93,25 @@ class CycleRolloverConfirmModal extends Modal {
 	private decision: boolean | null = null;
 
 	constructor(
-		private readonly plugin: TaskNotesViewsPlugin,
+		app: App,
+		private readonly translate: Translate,
 		private readonly previous: TFile,
 		private readonly next: TFile,
 		private readonly resolve: (decision: boolean) => void,
 	) {
-		super(plugin.app);
+		super(app);
 	}
 
 	/** Renders the task-move confirmation after the destination cycle has been created. */
 	onOpen(): void {
-		this.setTitle(this.plugin.i18n.translate('cycles.rolloverConfirm.title'));
-		this.contentEl.createEl('p', { text: this.plugin.i18n.translate('cycles.rolloverConfirm.description', {
+		this.setTitle(this.translate('cycles.rolloverConfirm.title'));
+		this.contentEl.createEl('p', { text: this.translate('cycles.rolloverConfirm.description', {
 			previous: this.previous.basename,
 			next: this.next.basename,
 		}) });
 		new Setting(this.contentEl)
-			.addButton((button) => button.setButtonText(this.plugin.i18n.translate('cycles.rolloverConfirm.cancel')).onClick(() => this.choose(false)))
-			.addButton((button) => button.setButtonText(this.plugin.i18n.translate('cycles.rolloverConfirm.confirm')).setCta().onClick(() => this.choose(true)));
+			.addButton((button) => button.setButtonText(this.translate('cycles.rolloverConfirm.cancel')).onClick(() => this.choose(false)))
+			.addButton((button) => button.setButtonText(this.translate('cycles.rolloverConfirm.confirm')).setCta().onClick(() => this.choose(true)));
 	}
 
 	/** Resolves the pending prompt when Obsidian closes it by any interaction. */
@@ -123,8 +128,8 @@ class CycleRolloverConfirmModal extends Modal {
 }
 
 /** Prompts the user before creating the cycle note that is scheduled for today. */
-function promptToCreateCycle(app: App, range: CycleDateRange): Promise<boolean> {
-	return new Promise((resolve) => new CycleCreateConfirmModal(app, range, resolve).open());
+function promptToCreateCycle(app: App, range: CycleDateRange, translate: Translate): Promise<boolean> {
+	return new Promise((resolve) => new CycleCreateConfirmModal(app, range, translate, resolve).open());
 }
 
 /** Collects a creation decision without treating a dismissed confirmation as approval. */
@@ -134,6 +139,7 @@ class CycleCreateConfirmModal extends Modal {
 	constructor(
 		app: App,
 		private readonly range: CycleDateRange,
+		private readonly translate: Translate,
 		private readonly resolve: (decision: boolean) => void,
 	) {
 		super(app);
@@ -141,11 +147,14 @@ class CycleCreateConfirmModal extends Modal {
 
 	/** Renders the creation prompt for the date range that has no existing cycle note. */
 	onOpen(): void {
-		this.setTitle('Create cycle note?');
-		this.contentEl.createEl('p', { text: `No cycle note covers ${this.range.startDate} to ${this.range.endDate}.` });
+		this.setTitle(this.translate('cycles.createConfirm.title'));
+		this.contentEl.createEl('p', { text: this.translate('cycles.createConfirm.description', {
+			startDate: this.range.startDate,
+			endDate: this.range.endDate,
+		}) });
 		new Setting(this.contentEl)
-			.addButton((button) => button.setButtonText('Cancel').onClick(() => this.choose(false)))
-			.addButton((button) => button.setButtonText('Create').setCta().onClick(() => this.choose(true)));
+			.addButton((button) => button.setButtonText(this.translate('cycles.createConfirm.cancel')).onClick(() => this.choose(false)))
+			.addButton((button) => button.setButtonText(this.translate('cycles.createConfirm.confirm')).setCta().onClick(() => this.choose(true)));
 	}
 
 	/** Resolves the pending prompt when Obsidian closes it by any interaction. */
@@ -183,7 +192,10 @@ async function runCloseCycleCommand(
 	const previous = await chooseProject(
 		plugin.app,
 		orderedSuggestions(projectFiles, previousGuess),
-		previousGuess ? `Previous cycle (suggested: ${previousGuess.path})` : 'Select previous cycle',
+		previousGuess
+			? plugin.i18n.translate('cycles.projectPicker.previousSuggested', { path: previousGuess.path })
+			: plugin.i18n.translate('cycles.projectPicker.previous'),
+		plugin.i18n.translate.bind(plugin.i18n),
 	);
 	if (!previous?.file) return;
 
@@ -193,14 +205,20 @@ async function runCloseCycleCommand(
 	const next = await chooseProject(
 		plugin.app,
 		nextItems,
-		`New cycle (suggested: ${prospectivePath})`,
+		plugin.i18n.translate('cycles.projectPicker.nextSuggested', { path: prospectivePath }),
+		plugin.i18n.translate.bind(plugin.i18n),
 	);
 	if (!next) return;
 
 	const newProject = next.file ?? await createAdjacentCycle(plugin, projects, previous.file, next.createPath ?? prospectivePath);
 	await snapshots.closeCycle(previous.file, 'manual-close');
 	const count = await rollover.rollover(previous.file, newProject);
-	new Notice(`Closed ${previous.file.basename} and rolled over ${count} task${count === 1 ? '' : 's'} to ${newProject.basename}.`);
+	new Notice(plugin.i18n.translate('cycles.notices.closedAndRolledOver', {
+		previousName: previous.file.basename,
+		count,
+		taskLabel: plugin.i18n.translate(count === 1 ? 'cycles.notices.task' : 'cycles.notices.tasks'),
+		nextName: newProject.basename,
+	}));
 }
 
 /** Classifies the active project using its configured end date and the local calendar day. */

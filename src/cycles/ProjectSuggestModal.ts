@@ -1,4 +1,5 @@
 import { App, FuzzySuggestModal, TFile } from 'obsidian';
+import type { Translate } from '../i18n';
 
 export interface ProjectSuggestion {
 	label: string;
@@ -14,6 +15,7 @@ export class ProjectSuggestModal extends FuzzySuggestModal<ProjectSuggestion> {
 		app: App,
 		private readonly items: ProjectSuggestion[],
 		placeholder: string,
+		private readonly translate: Translate,
 		private readonly resolveSelection: (selection: ProjectSuggestion | null) => void,
 	) {
 		super(app);
@@ -27,7 +29,7 @@ export class ProjectSuggestModal extends FuzzySuggestModal<ProjectSuggestion> {
 
 	/** Displays a vault path and clearly marks a note that will be created. */
 	getItemText(item: ProjectSuggestion): string {
-		return item.file ? item.label : `${item.label} (create)`;
+		return item.file ? item.label : `${item.label} ${this.translate('cycles.projectPicker.createSuffix')}`;
 	}
 
 	/** Resolves the command's pending selection exactly once. */
@@ -51,9 +53,9 @@ export class ProjectSuggestModal extends FuzzySuggestModal<ProjectSuggestion> {
 }
 
 /** Opens a fuzzy project selector and resolves when the user chooses or dismisses it. */
-export function chooseProject(app: App, items: ProjectSuggestion[], placeholder: string): Promise<ProjectSuggestion | null> {
+export function chooseProject(app: App, items: ProjectSuggestion[], placeholder: string, translate: Translate): Promise<ProjectSuggestion | null> {
 	return new Promise((resolve) => {
-		const modal = new ProjectSuggestModal(app, items, placeholder, resolve);
+		const modal = new ProjectSuggestModal(app, items, placeholder, translate, resolve);
 		modal.open();
 	});
 }

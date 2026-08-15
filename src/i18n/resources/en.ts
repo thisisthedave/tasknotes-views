@@ -103,11 +103,38 @@ export const en = {
 		},
 	},
 	cycles: {
+		commands: {
+			create: 'Create cycle',
+			open: 'Open cycle note',
+			close: 'Close cycle',
+		},
+		notices: {
+			created: 'Created {cycleName}.',
+			createdAndRolledOver: 'Created {cycleName} and rolled over {count} {taskLabel}.',
+			createError: 'Could not create cycle. Check the console for details.',
+			openError: 'Could not open cycle note. Check the console for details.',
+			closeError: 'Could not close cycle. Check the console for details.',
+			closedAndRolledOver: 'Closed {previousName} and rolled over {count} {taskLabel} to {nextName}.',
+			task: 'task',
+			tasks: 'tasks',
+		},
+		createConfirm: {
+			title: 'Create cycle note?',
+			description: 'No cycle note covers {startDate} to {endDate}.',
+			cancel: 'Cancel',
+			confirm: 'Create',
+		},
 		rolloverConfirm: {
 			title: 'Roll over incomplete tasks?',
 			description: 'Move eligible incomplete tasks from {previous} to {next}?',
 			cancel: 'Cancel',
 			confirm: 'Roll over',
+		},
+		projectPicker: {
+			previousSuggested: 'Previous cycle (suggested: {path})',
+			previous: 'Select previous cycle',
+			nextSuggested: 'New cycle (suggested: {path})',
+			createSuffix: '(create)',
 		},
 	},
 } as const;
