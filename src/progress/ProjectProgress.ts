@@ -2,6 +2,7 @@ import { App, TFile } from 'obsidian';
 import { TaskNotesViewsSettings } from '../settings';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 import { buildProgressWorkItems, ProgressWorkItem } from './OccurrenceProjection';
+import type { CycleSnapshotRecurringCompletion } from '../cycles/CycleSnapshotService';
 import { calculateProjectCapacity, CapacityCalculation } from './Velocity';
 
 export interface ProjectProgressPoint {
@@ -153,7 +154,6 @@ export function buildProjectProgress(
 	const start = parseDate(startDate);
 	const end = parseDate(endDate);
 	if (!start || !end || end < start) return null;
-	const dates = enumerateDates(start, end);
 	const inProgressStatuses = new Set(options.inProgressStatuses);
 	const workItems = buildProgressWorkItems(tasks, allTasks, startDate, endDate, {
 		scopeProperty: options.scopeProperty,
@@ -163,6 +163,20 @@ export function buildProjectProgress(
 		completedStatuses,
 		skippedStatuses,
 	});
+	return buildProjectProgressFromWorkItems(projectName, startDate, endDate, workItems, options);
+}
+
+/** Builds the chart payload from already-projected logical items. */
+function buildProjectProgressFromWorkItems(
+	projectName: string,
+	startDate: string,
+	endDate: string,
+	workItems: ProgressWorkItem[],
+	options: ProjectProgressOptions,
+): ProjectProgress {
+	const start = parseDate(startDate) as Date;
+	const end = parseDate(endDate) as Date;
+	const dates = enumerateDates(start, end);
 	const scope = workItems.reduce((sum, item) => sum + item.scope, 0);
 	const target = targetProgress(dates, scope, options.countWeekends);
 	const today = normalizeDate(options.today) ?? formatDate(new Date());
@@ -185,6 +199,35 @@ export function buildProjectProgress(
 		return { date: current, target: target[index] ?? 0, scope, scheduled, started, completed, scheduledTasks, startedTasks, completedTasks };
 	});
 	return { projectName, startDate, endDate, scope, scheduled: points.at(-1)?.scheduled ?? 0, started: points.at(-1)?.started ?? 0, completed: points.at(-1)?.completed ?? 0, today, scopeIsDuration: options.scopeIsDuration, workItems, points };
+}
+
+/** Merges removed recurring occurrence history into an active cycle without duplicating live projections. */
+export function mergeCycleSnapshotRecurringProgress(
+	liveProgress: ProjectProgress,
+	completedOccurrences: CycleSnapshotRecurringCompletion[],
+	countWeekends: boolean,
+): ProjectProgress {
+	const present = new Set((liveProgress.workItems ?? []).filter((item) => item.recurring && item.taskPath && item.recurrenceDate)
+		.map((item) => `${item.taskPath}\u0000${item.recurrenceDate}`));
+	const snapshotItems: ProgressWorkItem[] = completedOccurrences.filter((item) =>
+		item.occurrenceDate >= liveProgress.startDate && item.occurrenceDate <= liveProgress.endDate &&
+		!present.has(`${item.pathAtClose}\u0000${item.occurrenceDate}`),
+	).map((item) => ({
+		name: item.titleAtClose,
+		scope: item.scopeAtClose,
+		taskPath: item.pathAtClose,
+		recurring: true,
+		recurrenceDate: item.occurrenceDate,
+		scheduledDate: item.occurrenceDate,
+		startedDate: item.completedDate,
+		completedDate: item.completedDate,
+	}));
+	if (snapshotItems.length === 0) return liveProgress;
+	return buildProjectProgressFromWorkItems(liveProgress.projectName, liveProgress.startDate, liveProgress.endDate,
+		[...(liveProgress.workItems ?? []), ...snapshotItems], {
+			scopeProperty: '', taskStartProperty: '', taskScheduledProperty: '', inProgressStatuses: [],
+			scopeIsDuration: liveProgress.scopeIsDuration, countWeekends, today: liveProgress.today,
+		});
 }
 
 /** Loads project dates and matching project tasks through Obsidian and TaskNotes' public query API. */

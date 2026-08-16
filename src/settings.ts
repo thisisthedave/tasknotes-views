@@ -18,6 +18,7 @@ export interface TaskNotesViewsSettings {
 	cycleStartDay: CycleStartDay;
 	cycleDurationWeeks: number;
 	cycleTaskRollover: boolean;
+	recurringTaskRollover: boolean;
 	snapshotCycleProgressOnClose: boolean;
 }
 
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: TaskNotesViewsSettings = {
 	cycleStartDay: 'monday',
 	cycleDurationWeeks: 2,
 	cycleTaskRollover: false,
+	recurringTaskRollover: true,
 	snapshotCycleProgressOnClose: true,
 };
 
@@ -144,6 +146,11 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					control: { type: 'toggle', key: 'cycleTaskRollover', defaultValue: DEFAULT_SETTINGS.cycleTaskRollover },
 				},
 				{
+					name: t('settings.cycles.recurringRollover.name'),
+					desc: t('settings.cycles.recurringRollover.description'),
+					control: { type: 'toggle', key: 'recurringTaskRollover', defaultValue: DEFAULT_SETTINGS.recurringTaskRollover },
+				},
+				{
 					name: t('settings.cycles.snapshotOnClose.name'),
 					desc: t('settings.cycles.snapshotOnClose.description'),
 					control: { type: 'toggle', key: 'snapshotCycleProgressOnClose', defaultValue: DEFAULT_SETTINGS.snapshotCycleProgressOnClose },
@@ -194,6 +201,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 					await this.taskNotesViewsPlugin.saveSettings();
 				}));
 		this.addToggleSetting(t('settings.cycles.rollover.name'), t('settings.cycles.rollover.description'), 'cycleTaskRollover');
+		this.addToggleSetting(t('settings.cycles.recurringRollover.name'), t('settings.cycles.recurringRollover.description'), 'recurringTaskRollover');
 		this.addToggleSetting(t('settings.cycles.snapshotOnClose.name'), t('settings.cycles.snapshotOnClose.description'), 'snapshotCycleProgressOnClose');
 	}
 
@@ -212,7 +220,7 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 	}
 
 	/** Adds a persisted toggle control to the legacy settings renderer. */
-	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover' | 'snapshotCycleProgressOnClose'): void {
+	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover' | 'recurringTaskRollover' | 'snapshotCycleProgressOnClose'): void {
 		new Setting(this.containerEl)
 			.setName(name)
 			.setDesc(description)

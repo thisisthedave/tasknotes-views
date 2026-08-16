@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS, TaskNotesViewsSettings, TaskNotesViewsSettingTab } fr
 import { createCycleProgressExtension } from './views/CycleProgressEditor';
 import { registerCycleProgressReadingView } from './views/CycleProgressReading';
 import { registerCycleCommands } from './cycles/CycleCommands';
+import { RecurringCycleRolloverService } from './cycles/RecurringCycleRolloverService';
+import { getTaskNotesApi } from './tasknotes/TaskNotesApi';
 
 /** Registers TaskNotes project progress views and owns settings and lifecycle events. */
 export default class TaskNotesViewsPlugin extends Plugin {
@@ -17,6 +19,15 @@ export default class TaskNotesViewsPlugin extends Plugin {
 		this.registerEditorExtension(createCycleProgressExtension(this));
 		registerCycleProgressReadingView(this);
 		registerCycleCommands(this);
+		const api = getTaskNotesApi(this.app);
+		if (api?.events) {
+			const recurringCycles = new RecurringCycleRolloverService(this.app, this);
+			// TaskNotes emits this only when a new occurrence enters completion history, keeping prompts out of ordinary edits.
+			this.registerEvent(api.events.on('recurring.instance.completed', (payload) => {
+				void recurringCycles.handleCompletion(payload).catch((error: unknown) =>
+					console.error('[TaskNotes Views] Could not process recurring cycle rollover', error));
+			}));
+		}
 	}
 
 	/** Loads persisted values over safe defaults. */

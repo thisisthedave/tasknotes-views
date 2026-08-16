@@ -67,6 +67,10 @@ export const en = {
 				name: 'Cycle task rollover',
 				description: 'Automatically move eligible incomplete tasks when creating the next cycle.',
 			},
+			recurringRollover: {
+				name: 'Recurring task rollover',
+				description: 'Prompt to keep, remove, or roll over a recurring task after its final occurrence in a cycle.',
+			},
 			snapshotOnClose: {
 				name: 'Snapshot cycle progress on close',
 				description: 'Save immutable task membership and chart data before rollover changes project assignments.',
@@ -129,6 +133,16 @@ export const en = {
 			description: 'Move eligible incomplete tasks from {previous} to {next}?',
 			cancel: 'Cancel',
 			confirm: 'Roll over',
+		},
+		recurringRollover: {
+			title: 'Recurring task reached the end of this cycle',
+			description: '“{taskName}” has completed its final occurrence in {cycleName}.',
+			destination: 'Rollover will use {cycleName} ({creation}).',
+			createsCycle: 'a new cycle will be created',
+			existingCycle: 'an existing cycle',
+			keep: 'Keep assigned',
+			remove: 'Remove and snapshot',
+			rollover: 'Roll over',
 		},
 		projectPicker: {
 			previousSuggested: 'Previous cycle (suggested: {path})',

@@ -1,7 +1,7 @@
 import { App, moment as obsidianMoment, normalizePath, stringifyYaml, TFile } from 'obsidian';
 import type Moment from 'moment';
 import type TaskNotesViewsPlugin from '../main';
-import { loadLiveProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
+import { loadLiveProjectProgress, mergeCycleSnapshotRecurringProgress, ProjectProgress } from '../progress/ProjectProgress';
 import { getTaskNotesApi, TaskNotesTask } from '../tasknotes/TaskNotesApi';
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
@@ -36,6 +36,20 @@ export interface CycleSnapshotRecurringCompletion {
 	scopeAtClose: number;
 }
 
+/** Loads the occurrence history accumulated for a cycle before its parent tasks are removed. */
+export function loadCycleSnapshotRecurringCompletions(app: App, cycle: TFile): CycleSnapshotRecurringCompletion[] {
+	const snapshot = resolveSnapshotFile(app, cycle);
+	const value: unknown = snapshot ? getFrontmatter(app, snapshot)?.completedRecurringInstances : undefined;
+	if (!Array.isArray(value)) return [];
+	return value.filter((item): item is CycleSnapshotRecurringCompletion => {
+		if (!item || typeof item !== 'object') return false;
+		const candidate = item as Partial<CycleSnapshotRecurringCompletion>;
+		return typeof candidate.pathAtClose === 'string' && typeof candidate.titleAtClose === 'string' &&
+			typeof candidate.occurrenceDate === 'string' && typeof candidate.completedDate === 'string' &&
+			typeof candidate.scopeAtClose === 'number';
+	});
+}
+
 /** Extracts completed logical recurring occurrences represented by a frozen progress calculation. */
 export function getCompletedRecurringInstances(progress: ProjectProgress): CycleSnapshotRecurringCompletion[] {
 	return (progress.workItems ?? []).filter((item) => item.recurring && item.recurrenceDate && item.completedDate).map((item) => ({
@@ -57,8 +71,10 @@ export class CycleSnapshotService {
 		const existingClosedAt = getFrontmatter(this.app, cycle)?.cycleClosedAt;
 		const closedAt = typeof existingClosedAt === 'string' ? existingClosedAt : moment().format();
 		let snapshot = this.resolveExistingSnapshot(cycle);
-		if (this.plugin.settings.snapshotCycleProgressOnClose && !snapshot) {
-			snapshot = await this.createSnapshot(cycle, closedAt, captureReason);
+		if (this.plugin.settings.snapshotCycleProgressOnClose) {
+			snapshot = snapshot
+				? await this.refreshSnapshot(snapshot, cycle, closedAt, captureReason)
+				: await this.createSnapshot(cycle, closedAt, captureReason);
 		}
 		await this.app.fileManager.processFrontMatter(cycle, (frontmatter) => {
 			const properties = frontmatter as Record<string, unknown>;
@@ -67,6 +83,35 @@ export class CycleSnapshotService {
 			if (snapshot) properties.cycleSnapshot = this.toWikilink(snapshot);
 		});
 		return snapshot;
+	}
+
+	/** Records completed recurring occurrences before their parent task leaves an active cycle. */
+	async snapshotRecurringTaskRemoval(cycle: TFile, task: TaskNotesTask): Promise<void> {
+		const progress = await loadLiveProjectProgress(this.app, cycle, this.plugin.settings);
+		if (!progress) throw new Error(`Could not calculate progress for ${cycle.path} before removing a recurring task.`);
+		const history = getCompletedRecurringInstances(progress).filter((item) => item.pathAtClose === task.path);
+		if (history.length === 0) return;
+		const existing = this.resolveExistingSnapshot(cycle);
+		if (existing) {
+			const current = loadCycleSnapshotRecurringCompletions(this.app, cycle);
+			const merged = mergeRecurringCompletions(current, history);
+			await this.app.fileManager.processFrontMatter(existing, (frontmatter) => {
+				(frontmatter as Record<string, unknown>).completedRecurringInstances = merged;
+			});
+			return;
+		}
+		const path = this.getAvailableSnapshotPath(cycle);
+		await this.ensureSnapshotFolder(path);
+		const properties: Record<string, unknown> = {
+			type: 'cycle-snapshot', schemaVersion: SNAPSHOT_SCHEMA_VERSION, cycle: this.toWikilink(cycle),
+			capturedAt: moment().format(), captureReason: 'recurring-task-removal', tasks: [],
+			completedRecurringInstances: history,
+		};
+		const content = `---\n${stringifyYaml(properties).trimEnd()}\n---\n\n# ${cycle.basename} snapshot\n\n## Completed recurring instances\n\n${this.buildRecurringRows(history).join('\n')}`;
+		const snapshot = await this.app.vault.create(path, content);
+		await this.app.fileManager.processFrontMatter(cycle, (frontmatter) => {
+			(frontmatter as Record<string, unknown>).cycleSnapshot = this.toWikilink(snapshot);
+		});
 	}
 
 	/** Creates a companion Markdown note containing versioned task facts and precomputed progress points. */
@@ -94,6 +139,24 @@ export class CycleSnapshotService {
 		// Frontmatter must be part of the initial write because Obsidian may not cache a newly created file immediately.
 		const content = `---\n${stringifyYaml(properties).trimEnd()}\n---\n\n${body}`;
 		return this.app.vault.create(path, content);
+	}
+
+	/** Enriches an active occurrence-history snapshot into the immutable close-time graph payload. */
+	private async refreshSnapshot(snapshot: TFile, cycle: TFile, capturedAt: string, captureReason: string): Promise<TFile> {
+		const liveProgress = await loadLiveProjectProgress(this.app, cycle, this.plugin.settings);
+		if (!liveProgress) throw new Error(`Could not calculate progress for ${cycle.path} before closing it.`);
+		const tasks = await this.loadProjectTasks(cycle);
+		const history = mergeRecurringCompletions(loadCycleSnapshotRecurringCompletions(this.app, cycle), getCompletedRecurringInstances(liveProgress));
+		const progress = mergeCycleSnapshotRecurringProgress(liveProgress, history, this.plugin.settings.countWeekends);
+		await this.app.fileManager.processFrontMatter(snapshot, (frontmatter) => {
+			const properties = frontmatter as Record<string, unknown>;
+			properties.capturedAt = capturedAt;
+			properties.captureReason = captureReason;
+			properties.tasks = tasks.map((task) => this.snapshotTask(task));
+			properties.completedRecurringInstances = history;
+			properties.progress = progress;
+		});
+		return snapshot;
 	}
 
 	/** Loads the tasks assigned at close through the same public query contract as the graph. */
@@ -138,17 +201,19 @@ export class CycleSnapshotService {
 			const title = task.title?.trim() || task.path.replace(/\.md$/i, '').split('/').at(-1) || task.path;
 			return `- [[${task.path.replace(/\.md$/i, '')}|${title}]] — ${task.status}`;
 		});
-		const recurringRows = completedRecurringInstances.map((instance) =>
-			`- [[${instance.pathAtClose.replace(/\.md$/i, '')}|${instance.titleAtClose}]] — occurrence ${instance.occurrenceDate}, completed ${instance.completedDate}, scope ${instance.scopeAtClose}`);
+		const recurringRows = this.buildRecurringRows(completedRecurringInstances);
 		return `# ${cycle.basename} snapshot\n\nCaptured ${capturedAt}.\n\n## Tasks at close\n\n${taskRows.join('\n') || '_No tasks were assigned at close._'}\n\n## Completed recurring instances\n\n${recurringRows.join('\n') || '_No recurring instances were completed during this cycle._'}\n`;
+	}
+
+	/** Formats persisted recurring occurrence history as readable snapshot rows. */
+	private buildRecurringRows(completions: CycleSnapshotRecurringCompletion[]): string[] {
+		return completions.map((instance) =>
+			`- [[${instance.pathAtClose.replace(/\.md$/i, '')}|${instance.titleAtClose}]] — occurrence ${instance.occurrenceDate}, completed ${instance.completedDate}, scope ${instance.scopeAtClose}`);
 	}
 
 	/** Resolves the linked snapshot already recorded on the cycle, if any. */
 	private resolveExistingSnapshot(cycle: TFile): TFile | null {
-		const value = getFrontmatter(this.app, cycle)?.cycleSnapshot;
-		if (typeof value !== 'string') return null;
-		const linkpath = value.replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0]?.trim();
-		return linkpath ? this.app.metadataCache.getFirstLinkpathDest(linkpath, cycle.path) : null;
+		return resolveSnapshotFile(this.app, cycle);
 	}
 
 	/** Chooses a non-destructive snapshot filename beside the cycle project. */
@@ -185,10 +250,7 @@ export class CycleSnapshotService {
 
 /** Reads and validates the precomputed progress payload linked from a closed cycle. */
 export function loadCycleSnapshotProgress(app: App, cycle: TFile): ProjectProgress | null {
-	const snapshotValue = getFrontmatter(app, cycle)?.cycleSnapshot;
-	if (typeof snapshotValue !== 'string') return null;
-	const linkpath = snapshotValue.replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0]?.trim();
-	const snapshot = linkpath ? app.metadataCache.getFirstLinkpathDest(linkpath, cycle.path) : null;
+	const snapshot = resolveSnapshotFile(app, cycle);
 	if (!snapshot) return null;
 	const progress: unknown = getFrontmatter(app, snapshot)?.progress;
 	if (!progress || typeof progress !== 'object') return null;
@@ -196,4 +258,23 @@ export function loadCycleSnapshotProgress(app: App, cycle: TFile): ProjectProgre
 	if (typeof candidate.projectName !== 'string' || typeof candidate.startDate !== 'string' ||
 		typeof candidate.endDate !== 'string' || typeof candidate.scope !== 'number' || !Array.isArray(candidate.points)) return null;
 	return candidate as ProjectProgress;
+}
+
+/** Resolves the snapshot file linked from a cycle note. */
+function resolveSnapshotFile(app: App, cycle: TFile): TFile | null {
+	const snapshotValue = getFrontmatter(app, cycle)?.cycleSnapshot;
+	if (typeof snapshotValue !== 'string') return null;
+	const linkpath = snapshotValue.replace(/^\[\[/, '').replace(/\]\]$/, '').split('|')[0]?.trim();
+	const snapshot = linkpath ? app.metadataCache.getFirstLinkpathDest(linkpath, cycle.path) : null;
+	return snapshot && snapshot.path.toLowerCase().endsWith('.md') ? snapshot : null;
+}
+
+/** Deduplicates persisted occurrence history by parent path and occurrence date. */
+function mergeRecurringCompletions(
+	existing: CycleSnapshotRecurringCompletion[],
+	additional: CycleSnapshotRecurringCompletion[],
+): CycleSnapshotRecurringCompletion[] {
+	const merged = new Map<string, CycleSnapshotRecurringCompletion>();
+	for (const item of [...existing, ...additional]) merged.set(`${item.pathAtClose}\u0000${item.occurrenceDate}`, item);
+	return [...merged.values()];
 }

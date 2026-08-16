@@ -140,6 +140,8 @@ Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particula
   its main responsibilities, and pre/post conditions if appropriate.
 - Whenever adding new functionality, add a comment at the point in code that is the fulcrum of the
   new feature explaining what it is doing and why.
+- If appropriate, also add an entry for the release notes to @docs/releases/unreleased.md in the appropriate section explaining the new feature or fix
+
 ## Mobile
 
 - Where feasible, test on iOS and Android.

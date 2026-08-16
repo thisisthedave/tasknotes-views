@@ -1,7 +1,7 @@
-import { TFile } from 'obsidian';
+import { moment, TFile } from 'obsidian';
 import type TaskNotesViewsPlugin from '../main';
-import { loadCycleSnapshotProgress } from '../cycles/CycleSnapshotService';
-import { loadLiveProjectProgress, ProjectProgress } from '../progress/ProjectProgress';
+import { loadCycleSnapshotProgress, loadCycleSnapshotRecurringCompletions } from '../cycles/CycleSnapshotService';
+import { loadLiveProjectProgress, mergeCycleSnapshotRecurringProgress, ProjectProgress } from '../progress/ProjectProgress';
 import { getTaskNotesApi } from '../tasknotes/TaskNotesApi';
 import { CycleProgressChart, formatScopeValue } from './CycleProgressChart';
 
@@ -98,9 +98,16 @@ export function createCycleProgressWidget(plugin: TaskNotesViewsPlugin, file: TF
 	/** Reloads indexed project tasks and replaces the rendered chart atomically. */
 	const refresh = async (): Promise<void> => {
 		try {
-			// A linked close-time snapshot is authoritative; active projects continue to use live TaskNotes queries.
-			const progress = loadCycleSnapshotProgress(plugin.app, file) ??
-				await loadLiveProjectProgress(plugin.app, file, plugin.settings);
+			const snapshotProgress = loadCycleSnapshotProgress(plugin.app, file);
+			const today = moment().format('YYYY-MM-DD');
+			// Closed windows stay immutable; an active window combines removed parent history with live assignments.
+			const useSnapshot = snapshotProgress && (today < snapshotProgress.startDate || today > snapshotProgress.endDate);
+			const liveProgress = useSnapshot ? null : await loadLiveProjectProgress(plugin.app, file, plugin.settings);
+			const progress = useSnapshot ? snapshotProgress : liveProgress && mergeCycleSnapshotRecurringProgress(
+				liveProgress,
+				loadCycleSnapshotRecurringCompletions(plugin.app, file),
+				plugin.settings.countWeekends,
+			);
 			if (disposed) return;
 			chart?.dispose();
 			chart = null;

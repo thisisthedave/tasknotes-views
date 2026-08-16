@@ -29,6 +29,13 @@ export interface TaskNotesTask {
 	customProperties?: Record<string, unknown>;
 }
 
+/** Describes the public TaskNotes event facts needed by cycle integrations. */
+export interface TaskNotesEventPayload {
+	task?: TaskNotesTask;
+	before?: TaskNotesTask;
+	after?: TaskNotesTask;
+}
+
 interface TaskNotesApiShape {
 	apiVersion: number;
 	hasCapability(capability: string): boolean;
@@ -45,7 +52,8 @@ interface TaskNotesApiShape {
 	};
 	settings?: { snapshot(): TaskNotesSettingsSnapshot };
 	events?: {
-		on(event: 'task.updated' | 'settings.changed', handler: () => void): EventRef;
+		on(event: 'task.updated' | 'settings.changed', handler: (payload: TaskNotesEventPayload) => void): EventRef;
+		on(event: 'recurring.instance.completed', handler: (payload: TaskNotesEventPayload) => void): EventRef;
 		off(ref: EventRef): void;
 	};
 }

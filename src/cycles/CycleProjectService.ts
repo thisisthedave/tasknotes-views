@@ -17,6 +17,14 @@ export interface CreateCycleOptions {
 	cycleNumber?: number;
 }
 
+/** Describes the existing or not-yet-created cycle that contains a target calendar date. */
+export interface CycleDestination {
+	file: TFile | null;
+	range: CycleDateRange;
+	cycleNumber: number;
+	name: string;
+}
+
 /** Owns cycle path inference and note creation while keeping command orchestration small. */
 export class CycleProjectService {
 	constructor(private readonly app: App, private readonly plugin: TaskNotesViewsPlugin) {}
@@ -46,6 +54,37 @@ export class CycleProjectService {
 			return /^\d{4}-\d{2}-\d{2}$/.test(startDate) && /^\d{4}-\d{2}-\d{2}$/.test(endDate) &&
 				isDateInCycleRange(date, { startDate, endDate });
 		}) ?? null;
+	}
+
+	/** Plans the scheduled cycle containing a future date, preserving an already-created custom cycle when present. */
+	getCycleDestinationForDate(date: string, currentCycle: TFile): CycleDestination {
+		const existing = this.findCycleContainingDate(date);
+		if (existing) {
+			const frontmatter = this.app.metadataCache.getFileCache(existing)?.frontmatter;
+			return {
+				file: existing,
+				range: {
+					startDate: String(frontmatter?.[this.plugin.settings.projectStartProperty]),
+					endDate: String(frontmatter?.[this.plugin.settings.projectEndProperty]),
+				},
+				cycleNumber: getCycleNumber(existing.path) ?? 1,
+				name: existing.basename,
+			};
+		}
+		const frontmatter = this.app.metadataCache.getFileCache(currentCycle)?.frontmatter;
+		const currentRange = {
+			startDate: String(frontmatter?.[this.plugin.settings.projectStartProperty] ?? ''),
+			endDate: String(frontmatter?.[this.plugin.settings.projectEndProperty] ?? ''),
+		};
+		let range = /^\d{4}-\d{2}-\d{2}$/.test(currentRange.startDate) && /^\d{4}-\d{2}-\d{2}$/.test(currentRange.endDate)
+			? currentRange : getCycleDateRange(date, this.plugin.settings.cycleStartDay, this.plugin.settings.cycleDurationWeeks);
+		let cycleNumber = getCycleNumber(currentCycle.path) ?? 1;
+		while (!isDateInCycleRange(date, range)) {
+			range = getNextCycleDateRange(range, this.plugin.settings.cycleDurationWeeks);
+			cycleNumber += 1;
+		}
+		const path = this.getCyclePath(range, cycleNumber);
+		return { file: null, range, cycleNumber, name: path.replace(/\.md$/i, '').split('/').at(-1) ?? path };
 	}
 
 	/**
