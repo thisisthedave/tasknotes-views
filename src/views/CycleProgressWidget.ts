@@ -1,4 +1,5 @@
-import { moment, TFile } from 'obsidian';
+import { moment as obsidianMoment, TFile } from 'obsidian';
+import type Moment from 'moment';
 import type TaskNotesViewsPlugin from '../main';
 import { loadCycleSnapshotProgress, loadCycleSnapshotRecurringCompletions } from '../cycles/CycleSnapshotService';
 import { loadLiveProjectProgress, mergeCycleSnapshotRecurringProgress, ProjectProgress } from '../progress/ProjectProgress';
@@ -7,6 +8,9 @@ import { CycleProgressChart, formatScopeValue } from './CycleProgressChart';
 
 export const CYCLE_PROGRESS_CLASS = 'tasknotes-views-cycle-progress';
 let capacityTooltipSequence = 0;
+
+// Obsidian exposes Moment as an untyped runtime export; retain its declared call signature at this boundary.
+const moment: typeof Moment = obsidianMoment;
 
 /** Adds one Linear-style metric to the chart summary. */
 function renderMetric(container: HTMLElement, label: string, value: number, total: number, modifier: string, isDuration: boolean, showPercent: boolean, plugin: TaskNotesViewsPlugin): void {

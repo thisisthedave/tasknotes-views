@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, SettingDefinitionItem } from 'obsidian';
+import { App, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
 import TaskNotesViewsPlugin from './main';
 
 export interface TaskNotesViewsSettings {
@@ -157,79 +157,6 @@ export class TaskNotesViewsSettingTab extends PluginSettingTab {
 				},
 			],
 		}];
-	}
-
-	/** Renders the same controls on Obsidian versions that still invoke the legacy settings contract. */
-	display(): void {
-		const container = this.containerEl;
-		const t = this.taskNotesViewsPlugin.i18n.translate.bind(this.taskNotesViewsPlugin.i18n);
-		container.empty();
-		new Setting(container).setName(t('settings.heading')).setHeading();
-		this.addTextSetting(t('settings.projectStartProperty.name'), t('settings.projectStartProperty.description'), 'projectStartProperty', 'scheduled');
-		this.addTextSetting(t('settings.projectEndProperty.name'), t('settings.projectEndProperty.description'), 'projectEndProperty', 'due');
-		this.addToggleSetting(t('settings.deriveDateRangeFromTasks.name'), t('settings.deriveDateRangeFromTasks.description'), 'deriveDateRangeFromTasks');
-		this.addTextSetting(t('settings.scopeProperty.name'), t('settings.scopeProperty.description'), 'scopeProperty', 'timeEstimate');
-		this.addToggleSetting(t('settings.scopeIsDuration.name'), t('settings.scopeIsDuration.description'), 'scopeIsDuration');
-		this.addToggleSetting(t('settings.estimateCapacityFromVelocity.name'), t('settings.estimateCapacityFromVelocity.description'), 'estimateCapacityFromVelocity');
-		this.addTextSetting(t('settings.taskStartProperty.name'), t('settings.taskStartProperty.description'), 'taskStartProperty', 'startedAt');
-		this.addTextSetting(t('settings.taskScheduledProperty.name'), t('settings.taskScheduledProperty.description'), 'taskScheduledProperty', 'scheduled');
-		this.addTextSetting(t('settings.inProgressStatuses.name'), t('settings.inProgressStatuses.description'), 'inProgressStatuses', 'in-progress');
-		this.addToggleSetting(t('settings.countWeekends.name'), t('settings.countWeekends.description'), 'countWeekends');
-		new Setting(container).setName(t('settings.cycles.heading')).setHeading();
-		this.addTextSetting(t('settings.cycles.nameFormat.name'), t('settings.cycles.nameFormat.description'), 'cycleNameFormat', DEFAULT_SETTINGS.cycleNameFormat);
-		this.addTextSetting(t('settings.cycles.template.name'), t('settings.cycles.template.description'), 'cycleProjectTemplate', 'Templates/Cycle.md');
-		this.addTextSetting(t('settings.cycles.folder.name'), t('settings.cycles.folder.description'), 'cycleProjectFolder', 'Projects/Cycles');
-		new Setting(container)
-			.setName(t('settings.cycles.startDay.name'))
-			.setDesc(t('settings.cycles.startDay.description'))
-			.addDropdown((dropdown) => dropdown
-				.addOptions(getCycleStartDayOptions())
-				.setValue(this.taskNotesViewsPlugin.settings.cycleStartDay)
-				.onChange(async (value) => {
-					this.taskNotesViewsPlugin.settings.cycleStartDay = value as CycleStartDay;
-					await this.taskNotesViewsPlugin.saveSettings();
-				}));
-		new Setting(container)
-			.setName(t('settings.cycles.duration.name'))
-			.setDesc(t('settings.cycles.duration.description'))
-			.addText((text) => text
-				.setValue(String(this.taskNotesViewsPlugin.settings.cycleDurationWeeks))
-				.onChange(async (value) => {
-					const weeks = Number.parseInt(value, 10);
-					if (!Number.isFinite(weeks) || weeks < 1) return;
-					this.taskNotesViewsPlugin.settings.cycleDurationWeeks = weeks;
-					await this.taskNotesViewsPlugin.saveSettings();
-				}));
-		this.addToggleSetting(t('settings.cycles.rollover.name'), t('settings.cycles.rollover.description'), 'cycleTaskRollover');
-		this.addToggleSetting(t('settings.cycles.recurringRollover.name'), t('settings.cycles.recurringRollover.description'), 'recurringTaskRollover');
-		this.addToggleSetting(t('settings.cycles.snapshotOnClose.name'), t('settings.cycles.snapshotOnClose.description'), 'snapshotCycleProgressOnClose');
-	}
-
-	/** Adds a persisted text control to the legacy settings renderer. */
-	private addTextSetting(name: string, description: string, key: 'projectStartProperty' | 'projectEndProperty' | 'scopeProperty' | 'taskStartProperty' | 'taskScheduledProperty' | 'inProgressStatuses' | 'cycleNameFormat' | 'cycleProjectTemplate' | 'cycleProjectFolder', placeholder: string): void {
-		new Setting(this.containerEl)
-			.setName(name)
-			.setDesc(description)
-			.addText((text) => text
-				.setPlaceholder(placeholder)
-				.setValue(this.taskNotesViewsPlugin.settings[key])
-				.onChange(async (value) => {
-					this.taskNotesViewsPlugin.settings[key] = value;
-					await this.taskNotesViewsPlugin.saveSettings();
-				}));
-	}
-
-	/** Adds a persisted toggle control to the legacy settings renderer. */
-	private addToggleSetting(name: string, description: string, key: 'deriveDateRangeFromTasks' | 'scopeIsDuration' | 'estimateCapacityFromVelocity' | 'countWeekends' | 'cycleTaskRollover' | 'recurringTaskRollover' | 'snapshotCycleProgressOnClose'): void {
-		new Setting(this.containerEl)
-			.setName(name)
-			.setDesc(description)
-			.addToggle((toggle) => toggle
-				.setValue(this.taskNotesViewsPlugin.settings[key])
-				.onChange(async (value) => {
-					this.taskNotesViewsPlugin.settings[key] = value;
-					await this.taskNotesViewsPlugin.saveSettings();
-				}));
 	}
 
 	/** Reads a declarative control value from the plugin settings object. */

@@ -33,13 +33,6 @@ export default defineConfig(
 	},
 	...obsidianmd.configs.recommended,
 	{
-		files: ['src/settings.ts'],
-		rules: {
-			// This fallback is required by Obsidian runtimes that still invoke display() despite exposing definitions.
-			'obsidianmd/settings-tab/no-deprecated-display': 'off',
-		},
-	},
-	{
 		files: ['tests/obsidian.mock.ts'],
 		rules: {
 			// The runtime-only Obsidian package needs Moment supplied by the test harness.
