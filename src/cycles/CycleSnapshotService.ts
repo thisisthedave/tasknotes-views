@@ -98,6 +98,8 @@ export class CycleSnapshotService {
 			await this.app.fileManager.processFrontMatter(existing, (frontmatter) => {
 				(frontmatter as Record<string, unknown>).completedRecurringInstances = merged;
 			});
+			// Keep the readable list synchronized with the frontmatter used by the graph.
+			await this.updateRecurringHistoryBody(existing, merged);
 			return;
 		}
 		const path = this.getAvailableSnapshotPath(cycle);
@@ -209,6 +211,18 @@ export class CycleSnapshotService {
 	private buildRecurringRows(completions: CycleSnapshotRecurringCompletion[]): string[] {
 		return completions.map((instance) =>
 			`- [[${instance.pathAtClose.replace(/\.md$/i, '')}|${instance.titleAtClose}]] — occurrence ${instance.occurrenceDate}, completed ${instance.completedDate}, scope ${instance.scopeAtClose}`);
+	}
+
+	/** Replaces the readable recurring-history section while preserving the rest of a snapshot note. */
+	private async updateRecurringHistoryBody(snapshot: TFile, completions: CycleSnapshotRecurringCompletion[]): Promise<void> {
+		const content = await this.app.vault.read(snapshot);
+		const rows = this.buildRecurringRows(completions).join('\n') || '_No recurring instances were completed during this cycle._';
+		const heading = '## Completed recurring instances';
+		const sectionPattern = /(## Completed recurring instances\s*\n\n)[\s\S]*?(?=\n## |\s*$)/;
+		const updated = sectionPattern.test(content)
+			? content.replace(sectionPattern, `$1${rows}`)
+			: `${content.trimEnd()}\n\n${heading}\n\n${rows}\n`;
+		await this.app.vault.modify(snapshot, updated);
 	}
 
 	/** Resolves the linked snapshot already recorded on the cycle, if any. */
