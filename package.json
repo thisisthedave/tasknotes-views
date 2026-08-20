@@ -1,6 +1,6 @@
 {
 	"name": "tasknotes-views",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Project progress views for TaskNotes in Obsidian",
 	"main": "main.js",
 	"type": "module",
