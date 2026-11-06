@@ -54,7 +54,7 @@ export function registerCycleCommands(plugin: TaskNotesViewsPlugin): void {
 					plugin.settings.cycleStartDay,
 					plugin.settings.cycleDurationWeeks,
 				);
-				const existing = projects.findCycleContainingDate(today);
+				const existing = projects.findCycleNoteForDate(today, range);
 				if (existing) {
 					await plugin.app.workspace.getLeaf(false).openFile(existing);
 					return;

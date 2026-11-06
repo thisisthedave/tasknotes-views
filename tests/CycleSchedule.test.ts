@@ -31,25 +31,36 @@ describe('cycle schedule', () => {
 });
 
 /** Builds the minimal metadata-backed cycle service needed to test date inference. */
-function createCycleService(cycles: Array<{ path: string; startDate: string; endDate: string }>): CycleProjectService {
+function createCycleService(cycles: Array<{ path: string; startDate: string; endDate: string }>, cycleNameFormat = 'YYYY-[Cycle]-{cycle}', cycleProjectFolder = ''): CycleProjectService {
 	const files = cycles.map((cycle) => Object.assign(new TFile(), { path: cycle.path }));
 	const metadata = new Map(cycles.map((cycle) => [cycle.path, {
 		frontmatter: { scheduled: cycle.startDate, due: cycle.endDate },
 	}]));
 	const app = {
-		vault: { getMarkdownFiles: () => files },
+		vault: {
+			getMarkdownFiles: () => files,
+			getAbstractFileByPath: (path: string) => files.find((file) => file.path === path) ?? null,
+		},
 		metadataCache: { getFileCache: (file: TFile) => metadata.get(file.path) },
 	} as unknown as App;
 	const plugin = {
 		settings: {
-			cycleProjectFolder: '', projectStartProperty: 'scheduled', projectEndProperty: 'due',
-			cycleStartDay: 'monday', cycleDurationWeeks: 2,
+			cycleProjectFolder, projectStartProperty: 'scheduled', projectEndProperty: 'due',
+			cycleStartDay: 'monday', cycleDurationWeeks: 2, cycleNameFormat,
 		},
 	} as unknown as ConstructorParameters<typeof CycleProjectService>[1];
 	return new CycleProjectService(app, plugin);
 }
 
 describe('cycle project inference', () => {
+	it('opens the configured weekly note before an overlapping old cycle', () => {
+		const service = createCycleService([
+			{ path: 'journal/2026-Cycle-7.md', startDate: '2026-11-02', endDate: '2026-11-08' },
+			{ path: 'journal/2026-Week-45.md', startDate: '', endDate: '' },
+		], 'YYYY-[Week]-WW', 'journal');
+		expect(service.findCycleNoteForDate('2026-11-06', getCycleDateRange('2026-11-06', 'monday', 1))?.path)
+			.toBe('journal/2026-Week-45.md');
+	});
 	it('starts after the cycle containing today instead of the current week boundary', () => {
 		const inferred = createCycleService([{
 			path: 'Cycles/2026-Cycle-4.md', startDate: '2026-08-03', endDate: '2026-08-16',

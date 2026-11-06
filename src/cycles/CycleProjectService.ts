@@ -56,6 +56,16 @@ export class CycleProjectService {
 		}) ?? null;
 	}
 
+	/** Resolves today's configured note before falling back to a dated legacy cycle. */
+	findCycleNoteForDate(date: string, range: CycleDateRange): TFile | null {
+		if (!this.plugin.settings.cycleNameFormat.includes('{cycle}')) {
+			// A date-only format identifies one exact note; prefer it when old cycles overlap its dates.
+			const configured = this.app.vault.getAbstractFileByPath(this.getCyclePath(range, 1));
+			if (configured instanceof TFile) return configured;
+		}
+		return this.findCycleContainingDate(date);
+	}
+
 	/** Plans the scheduled cycle containing a future date, preserving an already-created custom cycle when present. */
 	getCycleDestinationForDate(date: string, currentCycle: TFile): CycleDestination {
 		const existing = this.findCycleContainingDate(date);
